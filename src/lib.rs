@@ -1,4 +1,5 @@
 pub mod crc;
+pub mod radix64;
 
 use crc::crc24;
 
