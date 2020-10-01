@@ -21,21 +21,26 @@ pub fn crc_octets(input: &[u8]) -> Crc24 {
     crc & 0xFFFFFF
 }
 
-#[test]
-fn crc_octets_for_hello_world() {
-    let input = "Hello World";
-    assert_eq!(crc_octets(input.as_bytes()), 12201156);
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn crc_octets_for_empty_string() {
-    let input = "";
-    assert_eq!(crc_octets(input.as_bytes()), 11994318);
-}
+    #[test]
+    fn crc_octets_for_hello_world() {
+        let input = "Hello World";
+        assert_eq!(crc_octets(input.as_bytes()), 12201156);
+    }
 
-#[test]
-fn crc_octets_for_long_string() {
-    let input = "A".repeat(2000);
-    println!("{}", input);
-    assert_eq!(crc_octets(input.as_bytes()), 11175483);
+    #[test]
+    fn crc_octets_for_empty_string() {
+        let input = "";
+        assert_eq!(crc_octets(input.as_bytes()), 11994318);
+    }
+
+    #[test]
+    fn crc_octets_for_long_string() {
+        let input = "A".repeat(2000);
+        println!("{}", input);
+        assert_eq!(crc_octets(input.as_bytes()), 11175483);
+    }
 }
