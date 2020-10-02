@@ -14,7 +14,7 @@ use std::collections::HashMap;
 pub struct Armor {
     data_type: ArmorDataType,
     header_line: String,
-    headers: HashMap<ArmorHeaderKey, String>,
+    headers: HashMap<ArmorHeaderKey, Vec<String>>,
     data: Vec<String>,
     checksum: String,
     tail_line: String,
@@ -159,17 +159,23 @@ impl Armor {
         }
     }
 
-    pub fn set_header(&mut self, key: ArmorHeaderKey, value: &str) {
-        self.headers.insert(key, value.to_string());
+    pub fn add_header(&mut self, key: ArmorHeaderKey, value: &str) {
+        self.headers
+            .entry(key)
+            .or_insert_with(Vec::new)
+            .push(value.to_string())
+        ;
     }
 
     pub fn armorize(&self) -> String {
         let mut armor = String::new();
         armor.push_str(&format!("-----{}-----\n", self.header_line));
 
-        for (key, val) in &self.headers {
-            let header = &format!("{}: {}\n", self.header_key_as_str(key), val);
-            armor.push_str(header);
+        for (key, values) in &self.headers {
+            for value in values {
+                let header = &format!("{}: {}\n", self.header_key_as_str(key), value);
+                armor.push_str(header);
+            }
         }
 
         armor.push_str("\n");
@@ -234,22 +240,51 @@ mod tests {
     #[test]
     fn header_version() {
         let mut armor = Armor::new(ArmorDataType::PgpMessage);
-        armor.set_header(ArmorHeaderKey::Version, "OpenPrivacy 0.99");
+        armor.add_header(ArmorHeaderKey::Version, "OpenPrivacy 0.99");
 
-        assert_eq!(armor.headers.get(&ArmorHeaderKey::Version).unwrap(), "OpenPrivacy 0.99");
+        let header_values = &armor.headers.get(&ArmorHeaderKey::Version).unwrap();
+
+        assert_eq!(header_values[0], "OpenPrivacy 0.99");
         assert_eq!(armor.headers.len(), 1);
     }
 
     #[test]
     fn armorize_with_version_header() {
         let mut armor = Armor::new(ArmorDataType::PgpMessage);
-        armor.set_header(ArmorHeaderKey::Version, "OpenPrivacy 0.99");
+        armor.add_header(ArmorHeaderKey::Version, "OpenPrivacy 0.99");
 
         assert_eq!(
             armor.armorize(),
             "\
 -----BEGIN PGP MESSAGE-----
 Version: OpenPrivacy 0.99
+
+-----END PGP MESSAGE-----"
+        );
+    }
+
+    #[test]
+    fn armorize_with_multiple_comment_headers() {
+        let mut armor = Armor::new(ArmorDataType::PgpMessage);
+        armor.add_header(ArmorHeaderKey::Comment, "Note that some transport methods are sensitive to line length.  While");
+        armor.add_header(ArmorHeaderKey::Comment, "there is a limit of 76 characters for the Radix-64 data (Section");
+        armor.add_header(ArmorHeaderKey::Comment, "6.3), there is no limit to the length of Armor Headers.  Care should");
+        armor.add_header(ArmorHeaderKey::Comment, "be taken that the Armor Headers are short enough to survive");
+        armor.add_header(ArmorHeaderKey::Comment, "transport.  One way to do this is to repeat an Armor Header key");
+        armor.add_header(ArmorHeaderKey::Comment, "multiple times with different values for each so that no one line is");
+        armor.add_header(ArmorHeaderKey::Comment, "overly long.");
+
+        assert_eq!(
+            armor.armorize(),
+            "\
+-----BEGIN PGP MESSAGE-----
+Comment: Note that some transport methods are sensitive to line length.  While
+Comment: there is a limit of 76 characters for the Radix-64 data (Section
+Comment: 6.3), there is no limit to the length of Armor Headers.  Care should
+Comment: be taken that the Armor Headers are short enough to survive
+Comment: transport.  One way to do this is to repeat an Armor Header key
+Comment: multiple times with different values for each so that no one line is
+Comment: overly long.
 
 -----END PGP MESSAGE-----"
         );
