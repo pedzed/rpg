@@ -9,6 +9,7 @@
 // -----END PGP MESSAGE-----
 
 use std::collections::HashMap;
+use super::coding::LINE_ENDING;
 
 // https://tools.ietf.org/html/rfc4880#section-6.2
 pub struct Armor {
@@ -169,16 +170,16 @@ impl Armor {
 
     pub fn armorize(&self) -> String {
         let mut armor = String::new();
-        armor.push_str(&format!("-----{}-----\n", self.header_line));
+        armor.push_str(&format!("-----{}-----{}", self.header_line, LINE_ENDING));
 
         for (key, values) in &self.headers {
             for value in values {
-                let header = &format!("{}: {}\n", self.header_key_as_str(key), value);
+                let header = &format!("{}: {}{}", self.header_key_as_str(key), value, LINE_ENDING);
                 armor.push_str(header);
             }
         }
 
-        armor.push_str("\n");
+        armor.push_str(LINE_ENDING);
 
         // TODO: Add Radix-64 encoding
         // TODO: Add CRC-24 checksum
@@ -253,14 +254,12 @@ mod tests {
         let mut armor = Armor::new(ArmorDataType::PgpMessage);
         armor.add_header(ArmorHeaderKey::Version, "OpenPrivacy 0.99");
 
-        assert_eq!(
-            armor.armorize(),
-            "\
------BEGIN PGP MESSAGE-----
-Version: OpenPrivacy 0.99
-
------END PGP MESSAGE-----"
-        );
+        assert_eq!(armor.armorize(), "\
+            -----BEGIN PGP MESSAGE-----\r\n\
+            Version: OpenPrivacy 0.99\r\n\
+            \r\n\
+            -----END PGP MESSAGE-----\
+        ");
     }
 
     #[test]
@@ -274,19 +273,17 @@ Version: OpenPrivacy 0.99
         armor.add_header(ArmorHeaderKey::Comment, "multiple times with different values for each so that no one line is");
         armor.add_header(ArmorHeaderKey::Comment, "overly long.");
 
-        assert_eq!(
-            armor.armorize(),
-            "\
------BEGIN PGP MESSAGE-----
-Comment: Note that some transport methods are sensitive to line length.  While
-Comment: there is a limit of 76 characters for the Radix-64 data (Section
-Comment: 6.3), there is no limit to the length of Armor Headers.  Care should
-Comment: be taken that the Armor Headers are short enough to survive
-Comment: transport.  One way to do this is to repeat an Armor Header key
-Comment: multiple times with different values for each so that no one line is
-Comment: overly long.
-
------END PGP MESSAGE-----"
-        );
+        assert_eq!(armor.armorize(), "\
+            -----BEGIN PGP MESSAGE-----\r\n\
+            Comment: Note that some transport methods are sensitive to line length.  While\r\n\
+            Comment: there is a limit of 76 characters for the Radix-64 data (Section\r\n\
+            Comment: 6.3), there is no limit to the length of Armor Headers.  Care should\r\n\
+            Comment: be taken that the Armor Headers are short enough to survive\r\n\
+            Comment: transport.  One way to do this is to repeat an Armor Header key\r\n\
+            Comment: multiple times with different values for each so that no one line is\r\n\
+            Comment: overly long.\r\n\
+            \r\n\
+            -----END PGP MESSAGE-----\
+        ");
     }
 }
