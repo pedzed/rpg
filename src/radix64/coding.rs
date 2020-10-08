@@ -37,12 +37,12 @@ impl Radix64 {
                 ((octets[i + 2] as u32) << 0)
             ;
 
-            // Bit masks to extract 6-bit segments from the octet triplet chunk
+            // Bit masks to extract 6-bit segments from the triplet octet chunk
             let encoded_sextet_chunk: [u32; 4] = [
-                (unencoded_octet_chunk & 16515072) >> 18, // 16515072 = (2^6 - 1) << 18
-                (unencoded_octet_chunk & 258048) >> 12,   // 258048   = (2^6 - 1) << 12
-                (unencoded_octet_chunk & 4032) >> 6,      // 4032     = (2^6 - 1) << 6
-                (unencoded_octet_chunk & 63) >> 0,        // 63       = (2^6 - 1) << 0
+                (unencoded_octet_chunk & 0b111111_000000_000000_000000) >> 18,
+                (unencoded_octet_chunk & 0b000000_111111_000000_000000) >> 12,
+                (unencoded_octet_chunk & 0b000000_000000_111111_000000) >> 6,
+                (unencoded_octet_chunk & 0b000000_000000_000000_111111) >> 0,
             ];
 
             for sextet in encoded_sextet_chunk.iter() {
@@ -50,37 +50,37 @@ impl Radix64 {
             }
         }
 
-        if octets_remaining == 1 {
-            let unencoded_octet_chunk = octets[octets_main_length];
-
-            let encoded_sextet_chunk: [u8; 2] = [
-                (unencoded_octet_chunk & 252) >> 2,     // 252 = (2^6 - 1) << 2
-
-                // Set the 4 least significant bits to zero
-                (unencoded_octet_chunk & 3) << 4,       // 3   = 2^2 - 1
-            ];
-
-            encoded_octets.push(tables::STD_ENCODE[encoded_sextet_chunk[0] as usize]);
-            encoded_octets.push(tables::STD_ENCODE[encoded_sextet_chunk[1] as usize]);
-            encoded_octets.push(b'=');
-            encoded_octets.push(b'=');
-        } else if octets_remaining == 2 {
+        if octets_remaining == 2 {
             let unencoded_octet_chunk = (octets[octets_main_length] as u32) << 8 |
                 (octets[octets_main_length + 1] as u32) << 0
             ;
 
             let encoded_sextet_chunk: [u32; 3] = [
-                (unencoded_octet_chunk & 64512) >> 10,  // 64512 = (2^6 - 1) << 10
-                (unencoded_octet_chunk & 1008) >> 4,    // 1008  = (2^6 - 1) << 4
+                (unencoded_octet_chunk & 0b1111_110000_000000) >> 10,
+                (unencoded_octet_chunk & 0b0000_001111_110000) >> 4,
 
                 // Set the 2 least significant bits to zero
-                (unencoded_octet_chunk & 15) << 2,      // 15    = 2^4 - 1
+                (unencoded_octet_chunk & 0b0000_000000_001111) << 2,
             ];
 
             for sextet in encoded_sextet_chunk.iter() {
                 encoded_octets.push(tables::STD_ENCODE[*sextet as usize]);
             }
 
+            encoded_octets.push(b'=');
+        } else if octets_remaining == 1 {
+            let unencoded_octet_chunk = octets[octets_main_length];
+
+            let encoded_sextet_chunk: [u8; 2] = [
+                (unencoded_octet_chunk & 0b11_111100) >> 2,
+
+                // Set the 4 least significant bits to zero
+                (unencoded_octet_chunk & 0b00_000011) << 4,
+            ];
+
+            encoded_octets.push(tables::STD_ENCODE[encoded_sextet_chunk[0] as usize]);
+            encoded_octets.push(tables::STD_ENCODE[encoded_sextet_chunk[1] as usize]);
+            encoded_octets.push(b'=');
             encoded_octets.push(b'=');
         }
 
