@@ -190,4 +190,74 @@ mod tests {
 
         assert_eq!(radix64.encoded, expected);
     }
+
+    // #[test]
+    // fn can_decode_1_char() {
+    //     let radix64 = Radix64::decode("SA==");
+    //     assert_eq!(radix64.encoded, String::from("SA=="));
+    //     assert_eq!(radix64.unencoded, b"H".to_vec());
+    // }
+
+    // #[test]
+    // fn can_decode_2_chars() {
+    //     let radix64 = Radix64::decode("SGU=");
+    //     assert_eq!(radix64.encoded, String::from("SGU="));
+    //     assert_eq!(radix64.unencoded, b"He".to_vec());
+    // }
+
+    // #[test]
+    // fn can_decode_3_chars() {
+    //     let radix64 = Radix64::decode("SGVs");
+    //     assert_eq!(radix64.encoded, String::from("SGVs"));
+    //     assert_eq!(radix64.unencoded, b"Hel".to_vec());
+    // }
+
+    // #[test]
+    // fn can_decode_4_chars() {
+    //     let radix64 = Radix64::decode("SGVsbA==");
+    //     assert_eq!(radix64.encoded, String::from("SGVsbA=="));
+    //     assert_eq!(radix64.unencoded, b"Hell".to_vec());
+    // }
+
+    // #[test]
+    // fn can_decode_5_chars() {
+    //     let radix64 = Radix64::decode("SGVsbG8=");
+    //     assert_eq!(radix64.encoded, String::from("SGVsbG8="));
+    //     assert_eq!(radix64.unencoded, b"Hello".to_vec());
+    // }
+
+    // #[test]
+    // fn can_decode_6_chars() {
+    //     let radix64 = Radix64::decode("SGVsbG8h");
+    //     assert_eq!(radix64.encoded, String::from("SGVsbG8h!"));
+    //     assert_eq!(radix64.unencoded, b"Hello!".to_vec());
+    // }
+
+    // #[test]
+    // fn can_decode_12_chars() {
+    //     let radix64 = Radix64::decode("SGVsbG8gV29ybGQh");
+    //     assert_eq!(radix64.encoded, String::from("SGVsbG8gV29ybGQh"));
+    //     assert_eq!(radix64.unencoded, b"Hello World!".to_vec());
+    // }
+
+    // #[test]
+    // fn can_decode_longer_text() {
+    //     let encoded = "\
+    //         TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQsIGNvbnNlY3RldHVyIGFkaXBpc2Np\r\n\
+    //         bmcgZWxpdCwgc2VkIGRvIGVpdXNtb2QgdGVtcG9yIGluY2lkaWR1bnQgdXQgbGFi\r\n\
+    //         b3JlIGV0IGRvbG9yZSBtYWduYSBhbGlxdWEuIFV0IGVuaW0gYWQgbWluaW0gdmVu\r\n\
+    //         aWFtLCBxdWlzIG5vc3RydWQgZXhlcmNpdGF0aW9uIHVsbGFtY28gbGFib3JpcyBu\r\n\
+    //         aXNpIHV0IGFsaXF1aXAgZXggZWEgY29tbW9kbyBjb25zZXF1YXQuIER1aXMgYXV0\r\n\
+    //         ZSBpcnVyZSBkb2xvciBpbiByZXByZWhlbmRlcml0IGluIHZvbHVwdGF0ZSB2ZWxp\r\n\
+    //         dCBlc3NlIGNpbGx1bSBkb2xvcmUgZXUgZnVnaWF0IG51bGxhIHBhcmlhdHVyLiBF\r\n\
+    //         eGNlcHRldXIgc2ludCBvY2NhZWNhdCBjdXBpZGF0YXQgbm9uIHByb2lkZW50LCBz\r\n\
+    //         dW50IGluIGN1bHBhIHF1aSBvZmZpY2lhIGRlc2VydW50IG1vbGxpdCBhbmltIGlk\r\n\
+    //         IGVzdCBsYWJvcnVtLg=="
+    //     ;
+    //     let expected = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
+
+    //     let radix64 = Radix64::decode(encoded);
+
+    //     assert_eq!(radix64.encoded, expected);
+    // }
 }
