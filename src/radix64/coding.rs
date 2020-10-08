@@ -6,6 +6,9 @@ use crate::radix64::tables;
 const LINE_LENGTH: usize = 64;
 pub const LINE_ENDING: &str = "\r\n";
 
+const BLOCKS_PER_OCTET: usize = 3;
+const BLOCKS_PER_SEXTET: usize = 4;
+
 pub const INVALID_VALUE: u8 = 255;
 
 pub struct Radix64 {
@@ -14,17 +17,14 @@ pub struct Radix64 {
 }
 
 impl Radix64 {
-    pub fn encode(unencoded: Vec<u8>) -> Radix64 {
-        const BLOCKS_PER_SEXTET: usize = 4;
-        const LOW_SIX_BITS: u64 = 0x3F;
-
+    pub fn encode(unencoded: Vec<u8>) -> Self {
         let octets = &unencoded;
-        let octets_remaining = octets.len() % 3;
+        let octets_remaining = octets.len() % BLOCKS_PER_OCTET;
         let octets_main_length = octets.len() - octets_remaining;
 
-        let mut encoded_sextets: Vec<u8> = vec![];
+        let mut encoded_octets: Vec<u8> = vec![];
 
-        for i in (0..octets_main_length).step_by(3) {
+        for i in (0..octets_main_length).step_by(BLOCKS_PER_OCTET) {
             let chunk: u32 =
                 ((octets[i] as u32) << 16) |
                 ((octets[i + 1] as u32) << 8) |
@@ -37,10 +37,10 @@ impl Radix64 {
             let c = (chunk & 4032) >> 6;        // 4032     = (2^6 - 1) << 6
             let d = (chunk & 63) >> 0;          // 63       = (2^6 - 1) << 0
 
-            encoded_sextets.push(tables::STD_ENCODE[a as usize]);
-            encoded_sextets.push(tables::STD_ENCODE[b as usize]);
-            encoded_sextets.push(tables::STD_ENCODE[c as usize]);
-            encoded_sextets.push(tables::STD_ENCODE[d as usize]);
+            encoded_octets.push(tables::STD_ENCODE[a as usize]);
+            encoded_octets.push(tables::STD_ENCODE[b as usize]);
+            encoded_octets.push(tables::STD_ENCODE[c as usize]);
+            encoded_octets.push(tables::STD_ENCODE[d as usize]);
         }
 
         if octets_remaining == 1 {
@@ -50,10 +50,10 @@ impl Radix64 {
             // Set the 4 least significant bits to zero
             let b = (chunk & 3) << 4;           // 3   = 2^2 - 1
 
-            encoded_sextets.push(tables::STD_ENCODE[a as usize]);
-            encoded_sextets.push(tables::STD_ENCODE[b as usize]);
-            encoded_sextets.push(b'=');
-            encoded_sextets.push(b'=');
+            encoded_octets.push(tables::STD_ENCODE[a as usize]);
+            encoded_octets.push(tables::STD_ENCODE[b as usize]);
+            encoded_octets.push(b'=');
+            encoded_octets.push(b'=');
         } else if octets_remaining == 2 {
             let chunk = (octets[octets_main_length] as u32) << 8 |
                 (octets[octets_main_length + 1] as u32) << 0
@@ -65,21 +65,21 @@ impl Radix64 {
             // Set the 2 least significant bits to zero
             let c = (chunk & 15) << 2; // 15    = 2^4 - 1
 
-            encoded_sextets.push(tables::STD_ENCODE[a as usize]);
-            encoded_sextets.push(tables::STD_ENCODE[b as usize]);
-            encoded_sextets.push(tables::STD_ENCODE[c as usize]);
-            encoded_sextets.push(b'=');
+            encoded_octets.push(tables::STD_ENCODE[a as usize]);
+            encoded_octets.push(tables::STD_ENCODE[b as usize]);
+            encoded_octets.push(tables::STD_ENCODE[c as usize]);
+            encoded_octets.push(b'=');
         }
 
         let mut encoded_lines = vec![];
 
-        for sextet_chunk in encoded_sextets.chunks(LINE_LENGTH) {
+        for sextet_chunk in encoded_octets.chunks(LINE_LENGTH) {
             encoded_lines.push(sextet_chunk);
         }
 
         let mut encoded_string: String;
 
-        encoded_string = String::with_capacity(encoded_sextets.len()); // TODO: Add new line count
+        encoded_string = String::with_capacity(encoded_octets.len()); // TODO: Add new line count
 
         for l in encoded_lines {
             encoded_string.push_str(&format!(
@@ -94,13 +94,13 @@ impl Radix64 {
             encoded_string.pop();
         }
 
-        Radix64 {
+        Self {
             unencoded,
             encoded: encoded_string,
         }
     }
 
-    pub fn decode(encoded: &str) -> Radix64 {
+    pub fn decode(encoded: &str) -> Self {
         unimplemented!();
     }
 }

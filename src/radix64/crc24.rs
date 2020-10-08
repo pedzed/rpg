@@ -9,10 +9,10 @@ pub struct Crc24 {
 }
 
 impl Crc24 {
-    pub fn new(input: &[u8]) -> Crc24 {
-        let octets = Crc24::calculate_octets(input);
+    pub fn new(input: &[u8]) -> Self {
+        let octets = Self::calculate_octets(input);
 
-        Crc24 {
+        Self {
             octets,
             encoded: Radix64::encode(vec![
                 (octets >> 16) as u8,

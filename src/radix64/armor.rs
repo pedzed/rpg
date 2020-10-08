@@ -111,7 +111,7 @@ pub enum ArmorHeaderKey {
 }
 
 impl Armor {
-    pub fn new(data_type: ArmorDataType) -> Armor {
+    pub fn new(data_type: ArmorDataType) -> Self {
         let header_line;
         let tail_line;
 
@@ -154,7 +154,7 @@ impl Armor {
             },
         }
 
-        Armor {
+        Self {
             data_type,
             header_line,
             headers: HashMap::new(),
