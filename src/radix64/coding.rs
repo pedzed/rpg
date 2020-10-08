@@ -4,22 +4,21 @@ use crate::radix64::tables;
 /// The encoded output stream must be represented in lines of no more
 /// than 76 characters each according to RFC 4880. GnuPG uses 64.
 const LINE_LENGTH: usize = 64;
-const LINE_ENDING: &str = "\r\n";
-
+pub const LINE_ENDING: &str = "\r\n";
 
 pub const INVALID_VALUE: u8 = 255;
 
 pub struct Radix64 {
-    unencoded: String,
-    encoded: String,
+    pub unencoded: Vec<u8>,
+    pub encoded: String,
 }
 
 impl Radix64 {
-    pub fn encode(unencoded: &str) -> Radix64 {
+    pub fn encode(unencoded: Vec<u8>) -> Radix64 {
         const BLOCKS_PER_SEXTET: usize = 4;
         const LOW_SIX_BITS: u64 = 0x3F;
 
-        let octets = unencoded.as_bytes();
+        let octets = &unencoded;
         let octets_remaining = octets.len() % 3;
         let octets_main_length = octets.len() - octets_remaining;
 
@@ -96,7 +95,7 @@ impl Radix64 {
         }
 
         Radix64 {
-            unencoded: unencoded.to_string(),
+            unencoded,
             encoded: encoded_string,
         }
     }
@@ -112,56 +111,56 @@ mod tests {
 
     #[test]
     fn can_encode_1_char() {
-        let radix64 = Radix64::encode("H");
-        assert_eq!(radix64.unencoded, String::from("H"));
+        let radix64 = Radix64::encode(b"H".to_vec());
+        assert_eq!(radix64.unencoded, b"H");
         assert_eq!(radix64.encoded, String::from("SA=="));
     }
 
     #[test]
     fn can_encode_2_chars() {
-        let radix64 = Radix64::encode("He");
-        assert_eq!(radix64.unencoded, String::from("He"));
+        let radix64 = Radix64::encode(b"He".to_vec());
+        assert_eq!(radix64.unencoded, b"He");
         assert_eq!(radix64.encoded, String::from("SGU="));
     }
 
     #[test]
     fn can_encode_3_chars() {
-        let radix64 = Radix64::encode("Hel");
-        assert_eq!(radix64.unencoded, String::from("Hel"));
+        let radix64 = Radix64::encode(b"Hel".to_vec());
+        assert_eq!(radix64.unencoded, b"Hel".to_vec());
         assert_eq!(radix64.encoded, String::from("SGVs"));
     }
 
     #[test]
     fn can_encode_4_chars() {
-        let radix64 = Radix64::encode("Hell");
-        assert_eq!(radix64.unencoded, String::from("Hell"));
+        let radix64 = Radix64::encode(b"Hell".to_vec());
+        assert_eq!(radix64.unencoded, b"Hell".to_vec());
         assert_eq!(radix64.encoded, String::from("SGVsbA=="));
     }
 
     #[test]
     fn can_encode_5_chars() {
-        let radix64 = Radix64::encode("Hello");
-        assert_eq!(radix64.unencoded, String::from("Hello"));
+        let radix64 = Radix64::encode(b"Hello".to_vec());
+        assert_eq!(radix64.unencoded, b"Hello".to_vec());
         assert_eq!(radix64.encoded, String::from("SGVsbG8="));
     }
 
     #[test]
     fn can_encode_6_chars() {
-        let radix64 = Radix64::encode("Hello!");
-        assert_eq!(radix64.unencoded, String::from("Hello!"));
+        let radix64 = Radix64::encode(b"Hello!".to_vec());
+        assert_eq!(radix64.unencoded, b"Hello!".to_vec());
         assert_eq!(radix64.encoded, String::from("SGVsbG8h"));
     }
 
     #[test]
     fn can_encode_12_chars() {
-        let radix64 = Radix64::encode("Hello World!");
-        assert_eq!(radix64.unencoded, String::from("Hello World!"));
+        let radix64 = Radix64::encode(b"Hello World!".to_vec());
+        assert_eq!(radix64.unencoded, b"Hello World!".to_vec());
         assert_eq!(radix64.encoded, String::from("SGVsbG8gV29ybGQh"));
     }
 
     #[test]
     fn can_encode_longer_text() {
-        let unencoded = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
+        let unencoded = b"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.".to_vec();
 
         let expected = "\
             TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQsIGNvbnNlY3RldHVyIGFkaXBpc2Np\r\n\
