@@ -1,10 +1,9 @@
-pub mod crc;
 pub mod radix64;
 
-use crc::crc24;
+use radix64::crc24::Crc24;
 
 pub fn run_crc(input: &str) {
-    let output = crc24::crc_octets(input.as_bytes());
+    let crc = Crc24::new(input.as_bytes());
     println!("CRC-24 called.");
-    println!("Input:  `{}`\noutput: `{}`", input, output);
+    println!("Input:  `{}`\noutput: `{}`", input, crc.to_checksum());
 }
