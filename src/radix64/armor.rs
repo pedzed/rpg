@@ -347,6 +347,7 @@ mod tests {
             "-----END PGP MESSAGE-----",
         ];
 
+        // Ordering of HashMap elements is arbitrary, hence the sorting:
         assert_eq!(lines.sort(), expected.sort());
     }
 }
