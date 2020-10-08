@@ -40,7 +40,7 @@ impl Crc24 {
         crc & 0xFFFFFF
     }
 
-    pub fn to_checksum(self) -> String {
+    pub fn radix64_checksum(self) -> String {
         format!("={}", self.encoded)
     }
 }
@@ -56,7 +56,7 @@ mod tests {
         let crc24 = Crc24::new(b"Hello World");
 
         assert_eq!(crc24.octets, 12201156);
-        assert_eq!(crc24.to_checksum(), "=uizE");
+        assert_eq!(crc24.radix64_checksum(), "=uizE");
     }
 
     #[test]
@@ -64,7 +64,7 @@ mod tests {
         let crc24 = Crc24::new(b"");
 
         assert_eq!(crc24.octets, 11994318);
-        assert_eq!(crc24.to_checksum(), "=twTO");
+        assert_eq!(crc24.radix64_checksum(), "=twTO");
     }
 
     #[test]
@@ -73,6 +73,6 @@ mod tests {
         let crc24 = Crc24::new(&input);
 
         assert_eq!(crc24.octets, 11175483);
-        assert_eq!(crc24.to_checksum(), "=qoY7");
+        assert_eq!(crc24.radix64_checksum(), "=qoY7");
     }
 }
