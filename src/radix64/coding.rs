@@ -25,66 +25,77 @@ impl Radix64 {
         let mut encoded_octets: Vec<u8> = vec![];
 
         for i in (0..octets_main_length).step_by(BLOCKS_PER_OCTET) {
-            let chunk: u32 =
-                ((octets[i] as u32) << 16) |
+            // Source   Text (ASCII)    M              |a              |n
+            //          Octets          77 (0x4d)      |97 (0x61)      |110 (0x6e)
+            // Bits                     0 1 0 0 1 1¦0 1|0 1 1 0¦0 0 0 1|0 1¦1 0 1 1 1 0
+            // Encoded  Sextets         19         |22         |5          |46
+            //          Character       T          |W          |F          |u
+            //          Octets          84 (0x54)  |87 (0x57)  |70 (0x46)  |117 (0x75)
+            let unencoded_octet_chunk: u32 =
+                ((octets[i + 0] as u32) << 16) |
                 ((octets[i + 1] as u32) << 8) |
                 ((octets[i + 2] as u32) << 0)
             ;
 
             // Bit masks to extract 6-bit segments from the octet triplet chunk
-            let a = (chunk & 16515072) >> 18;   // 16515072 = (2^6 - 1) << 18
-            let b = (chunk & 258048) >> 12;     // 258048   = (2^6 - 1) << 12
-            let c = (chunk & 4032) >> 6;        // 4032     = (2^6 - 1) << 6
-            let d = (chunk & 63) >> 0;          // 63       = (2^6 - 1) << 0
+            let encoded_sextet_chunk: [u32; 4] = [
+                (unencoded_octet_chunk & 16515072) >> 18, // 16515072 = (2^6 - 1) << 18
+                (unencoded_octet_chunk & 258048) >> 12,   // 258048   = (2^6 - 1) << 12
+                (unencoded_octet_chunk & 4032) >> 6,      // 4032     = (2^6 - 1) << 6
+                (unencoded_octet_chunk & 63) >> 0,        // 63       = (2^6 - 1) << 0
+            ];
 
-            encoded_octets.push(tables::STD_ENCODE[a as usize]);
-            encoded_octets.push(tables::STD_ENCODE[b as usize]);
-            encoded_octets.push(tables::STD_ENCODE[c as usize]);
-            encoded_octets.push(tables::STD_ENCODE[d as usize]);
+            for sextet in encoded_sextet_chunk.iter() {
+                encoded_octets.push(tables::STD_ENCODE[*sextet as usize]);
+            }
         }
 
         if octets_remaining == 1 {
-            let chunk = octets[octets_main_length];
-            let a = (chunk & 252) >> 2;         // 252 = (2^6 - 1) << 2
+            let unencoded_octet_chunk = octets[octets_main_length];
 
-            // Set the 4 least significant bits to zero
-            let b = (chunk & 3) << 4;           // 3   = 2^2 - 1
+            let encoded_sextet_chunk: [u8; 2] = [
+                (unencoded_octet_chunk & 252) >> 2,     // 252 = (2^6 - 1) << 2
 
-            encoded_octets.push(tables::STD_ENCODE[a as usize]);
-            encoded_octets.push(tables::STD_ENCODE[b as usize]);
+                // Set the 4 least significant bits to zero
+                (unencoded_octet_chunk & 3) << 4,       // 3   = 2^2 - 1
+            ];
+
+            encoded_octets.push(tables::STD_ENCODE[encoded_sextet_chunk[0] as usize]);
+            encoded_octets.push(tables::STD_ENCODE[encoded_sextet_chunk[1] as usize]);
             encoded_octets.push(b'=');
             encoded_octets.push(b'=');
         } else if octets_remaining == 2 {
-            let chunk = (octets[octets_main_length] as u32) << 8 |
+            let unencoded_octet_chunk = (octets[octets_main_length] as u32) << 8 |
                 (octets[octets_main_length + 1] as u32) << 0
             ;
 
-            let a = (chunk & 64512) >> 10;      // 64512 = (2^6 - 1) << 10
-            let b = (chunk & 1008) >> 4;        // 1008  = (2^6 - 1) << 4
+            let encoded_sextet_chunk: [u32; 3] = [
+                (unencoded_octet_chunk & 64512) >> 10,  // 64512 = (2^6 - 1) << 10
+                (unencoded_octet_chunk & 1008) >> 4,    // 1008  = (2^6 - 1) << 4
 
-            // Set the 2 least significant bits to zero
-            let c = (chunk & 15) << 2; // 15    = 2^4 - 1
+                // Set the 2 least significant bits to zero
+                (unencoded_octet_chunk & 15) << 2,      // 15    = 2^4 - 1
+            ];
 
-            encoded_octets.push(tables::STD_ENCODE[a as usize]);
-            encoded_octets.push(tables::STD_ENCODE[b as usize]);
-            encoded_octets.push(tables::STD_ENCODE[c as usize]);
+            for sextet in encoded_sextet_chunk.iter() {
+                encoded_octets.push(tables::STD_ENCODE[*sextet as usize]);
+            }
+
             encoded_octets.push(b'=');
         }
 
-        let mut encoded_lines = vec![];
+        let encoded_octet_lines = encoded_octets.chunks(LINE_LENGTH);
 
-        for sextet_chunk in encoded_octets.chunks(LINE_LENGTH) {
-            encoded_lines.push(sextet_chunk);
-        }
+        let encoded_length = encoded_octets.len() +
+            encoded_octet_lines.len() * LINE_ENDING.len()
+        ;
 
-        let mut encoded_string: String;
+        let mut encoded_string = String::with_capacity(encoded_length);
 
-        encoded_string = String::with_capacity(encoded_octets.len()); // TODO: Add new line count
-
-        for l in encoded_lines {
+        for line in encoded_octets.chunks(LINE_LENGTH) {
             encoded_string.push_str(&format!(
                 "{}{}",
-                str::from_utf8(l).expect("Found invalid UTF-8."),
+                str::from_utf8(line).expect("Found invalid UTF-8."),
                 LINE_ENDING
             ));
         }
