@@ -39,10 +39,10 @@ impl Radix64 {
 
             // Bit masks to extract 6-bit segments from the triplet octet chunk
             let encoded_sextet_chunk: [u32; 4] = [
-                (unencoded_octet_chunk & 0b111111_000000_000000_000000) >> 18,
-                (unencoded_octet_chunk & 0b000000_111111_000000_000000) >> 12,
-                (unencoded_octet_chunk & 0b000000_000000_111111_000000) >> 6,
-                (unencoded_octet_chunk & 0b000000_000000_000000_111111) >> 0,
+                (unencoded_octet_chunk & 0b11111100_00000000_00000000) >> 18,
+                (unencoded_octet_chunk & 0b00000011_11110000_00000000) >> 12,
+                (unencoded_octet_chunk & 0b00000000_00001111_11000000) >> 6,
+                (unencoded_octet_chunk & 0b00000000_00000000_00111111) >> 0,
             ];
 
             for sextet in encoded_sextet_chunk.iter() {
@@ -56,11 +56,11 @@ impl Radix64 {
             ;
 
             let encoded_sextet_chunk: [u32; 3] = [
-                (unencoded_octet_chunk & 0b1111_110000_000000) >> 10,
-                (unencoded_octet_chunk & 0b0000_001111_110000) >> 4,
+                (unencoded_octet_chunk & 0b11111100_00000000) >> 10,
+                (unencoded_octet_chunk & 0b00000011_11110000) >> 4,
 
                 // Set the 2 least significant bits to zero
-                (unencoded_octet_chunk & 0b0000_000000_001111) << 2,
+                (unencoded_octet_chunk & 0b00000000_00001111) << 2,
             ];
 
             for sextet in encoded_sextet_chunk.iter() {
@@ -72,10 +72,10 @@ impl Radix64 {
             let unencoded_octet_chunk = octets[octets_main_length];
 
             let encoded_sextet_chunk: [u8; 2] = [
-                (unencoded_octet_chunk & 0b11_111100) >> 2,
+                (unencoded_octet_chunk & 0b11111100) >> 2,
 
                 // Set the 4 least significant bits to zero
-                (unencoded_octet_chunk & 0b00_000011) << 4,
+                (unencoded_octet_chunk & 0b00000011) << 4,
             ];
 
             encoded_octets.push(tables::STD_ENCODE[encoded_sextet_chunk[0] as usize]);
