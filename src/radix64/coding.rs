@@ -38,11 +38,11 @@ impl Radix64 {
             ;
 
             // Bit masks to extract 6-bit segments from the triplet octet chunk
-            let encoded_sextet_chunk: [u32; 4] = [
-                (unencoded_octet_chunk & 0b11111100_00000000_00000000) >> 18,
-                (unencoded_octet_chunk & 0b00000011_11110000_00000000) >> 12,
-                (unencoded_octet_chunk & 0b00000000_00001111_11000000) >> 6,
-                (unencoded_octet_chunk & 0b00000000_00000000_00111111) >> 0,
+            let encoded_sextet_chunk: [u8; 4] = [
+                ((unencoded_octet_chunk & 0b11111100_00000000_00000000) >> 18) as u8,
+                ((unencoded_octet_chunk & 0b00000011_11110000_00000000) >> 12) as u8,
+                ((unencoded_octet_chunk & 0b00000000_00001111_11000000) >> 6) as u8,
+                ((unencoded_octet_chunk & 0b00000000_00000000_00111111) >> 0) as u8,
             ];
 
             for sextet in encoded_sextet_chunk.iter() {
@@ -55,12 +55,12 @@ impl Radix64 {
                 (octets[octets_main_length + 1] as u32) << 0
             ;
 
-            let encoded_sextet_chunk: [u32; 3] = [
-                (unencoded_octet_chunk & 0b11111100_00000000) >> 10,
-                (unencoded_octet_chunk & 0b00000011_11110000) >> 4,
+            let encoded_sextet_chunk: [u8; 3] = [
+                ((unencoded_octet_chunk & 0b11111100_00000000) >> 10) as u8,
+                ((unencoded_octet_chunk & 0b00000011_11110000) >> 4) as u8,
 
                 // Set the 2 least significant bits to zero
-                (unencoded_octet_chunk & 0b00000000_00001111) << 2,
+                ((unencoded_octet_chunk & 0b00000000_00001111) << 2) as u8,
             ];
 
             for sextet in encoded_sextet_chunk.iter() {
