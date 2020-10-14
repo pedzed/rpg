@@ -39,40 +39,31 @@ impl Crc24 {
 
         crc & 0xFFFFFF
     }
-
-    pub fn radix64_checksum(self) -> String {
-        format!("={}", self.encoded)
-    }
 }
-
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn crc_octets_for_hello_world() {
+    fn hello_world() {
         let crc24 = Crc24::new(b"Hello World");
 
         assert_eq!(crc24.octets, 12201156);
-        assert_eq!(crc24.radix64_checksum(), "=uizE");
     }
 
     #[test]
-    fn crc_octets_for_empty_string() {
+    fn empty_string() {
         let crc24 = Crc24::new(b"");
 
         assert_eq!(crc24.octets, 11994318);
-        assert_eq!(crc24.radix64_checksum(), "=twTO");
     }
 
     #[test]
-    fn crc_octets_for_long_string() {
+    fn long_string() {
         let input = b"A".repeat(2000);
         let crc24 = Crc24::new(&input);
 
         assert_eq!(crc24.octets, 11175483);
-        assert_eq!(crc24.radix64_checksum(), "=qoY7");
     }
 }
