@@ -74,7 +74,7 @@ impl ArmorDataType {
                     }
                 }
 
-                Err(ArmorDataTypeError(format!("Invalid armor data type `{}`.", input)))
+                Err(ArmorDataTypeError(format!("Unknown Armor data type `{}`.", input)))
             },
         }
     }
@@ -102,7 +102,7 @@ mod tests {
     fn str_to_enum_fails_for_invalid_input() {
         assert_eq!(
             ArmorDataType::from_str("InvalidInput"),
-            Err(ArmorDataTypeError(String::from("Invalid armor data type `InvalidInput`.")))
+            Err(ArmorDataTypeError(String::from("Unknown Armor data type `InvalidInput`.")))
         );
     }
 

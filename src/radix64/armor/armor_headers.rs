@@ -56,7 +56,7 @@ impl ArmorHeader {
             "MessageID" => Ok(Self::MessageId),
             "Hash" => Ok(Self::Hash),
             "Charset" => Ok(Self::Charset),
-            x => Err(ArmorHeaderError(format!("Input `{}` not valid.", x))),
+            x => Err(ArmorHeaderError(format!("Unknown Armor header `{}`.", x))),
         }
     }
 
@@ -84,7 +84,7 @@ mod tests {
     fn str_to_enum_fails_for_invalid_input() {
         assert_eq!(
             ArmorHeader::from_str("InvalidInput"),
-            Err(ArmorHeaderError(String::from("Input `InvalidInput` not valid.")))
+            Err(ArmorHeaderError(String::from("Unknown Armor header `InvalidInput`.")))
         );
     }
 
