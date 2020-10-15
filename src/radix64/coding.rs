@@ -11,6 +11,7 @@ const BLOCKS_PER_SEXTET: usize = 4;
 
 pub const INVALID_VALUE: u8 = 255;
 
+#[derive(Debug)]
 pub struct Radix64 {
     pub unencoded: Vec<u8>,
     pub encoded: String,
@@ -183,7 +184,7 @@ fn decode_full_chunks(full_chunks: &[&[u8]]) -> Vec<u8> {
         for &octet in decoded_octet_chunk.iter() {
             if octet == INVALID_VALUE {
                 // TODO: Replace with catchable error
-                panic!("Unexpected value to decode.");
+                panic!("Unexpected value `{}` to decode.", octet);
             }
 
             unencoded.push(octet);

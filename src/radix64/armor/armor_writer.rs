@@ -44,7 +44,7 @@ impl ArmorWriter {
     }
 
     pub fn set_data(&mut self, data: Vec<u8>) {
-        self.checksum = Some(ArmorChecksum::new(&data.as_slice()));
+        self.checksum = Some(ArmorChecksum::from_payload(&data.as_slice()));
         self.data = Some(Radix64::encode(data));
     }
 

@@ -1,32 +1,50 @@
 use super::coding::Radix64;
 
-const CRC24_INIT: u32 = 0xB704CE;
-const CRC24_POLY: u32 = 0x864CFB;
+type Crc24Code = u32;
 
+const CRC24_INIT: Crc24Code = 0xB704CE;
+const CRC24_POLY: Crc24Code = 0x864CFB;
+
+#[derive(Debug)]
 pub struct Crc24 {
-    pub octets: u32,
+    pub code: Crc24Code,
     pub encoded: String,
 }
 
 impl Crc24 {
-    pub fn new(input: &[u8]) -> Self {
-        let octets = Self::calculate_octets(input);
+    pub fn from_encoded(encoded: &str) -> Self {
+        let decoded = Radix64::decode(encoded).unencoded;
+
+        let code: Crc24Code =
+            (decoded[0] as Crc24Code) << 16 |
+            (decoded[1] as Crc24Code) << 8 |
+            (decoded[2] as Crc24Code) << 0
+        ;
 
         Self {
-            octets,
+            code,
+            encoded: String::from(encoded),
+        }
+    }
+
+    pub fn from_payload(input: &[u8]) -> Self {
+        let code = Self::calculate_code(input);
+
+        Self {
+            code,
             encoded: Radix64::encode(vec![
-                (octets >> 16) as u8,
-                (octets >> 8) as u8,
-                (octets >> 0) as u8,
+                (code >> 16) as u8,
+                (code >> 8) as u8,
+                (code >> 0) as u8,
             ]).encoded,
         }
     }
 
-    fn calculate_octets(input: &[u8]) -> u32 {
+    fn calculate_code(input: &[u8]) -> Crc24Code {
         let mut crc = CRC24_INIT;
 
         for octet in input.iter() {
-            crc ^= (*octet as u32) << 16;
+            crc ^= (*octet as Crc24Code) << 16;
 
             for _ in 0..8 {
                 crc <<= 1;
@@ -47,23 +65,23 @@ mod tests {
 
     #[test]
     fn hello_world() {
-        let crc24 = Crc24::new(b"Hello World");
+        let crc24 = Crc24::from_payload(b"Hello World");
 
-        assert_eq!(crc24.octets, 12201156);
+        assert_eq!(crc24.code, 12201156);
     }
 
     #[test]
     fn empty_string() {
-        let crc24 = Crc24::new(b"");
+        let crc24 = Crc24::from_payload(b"");
 
-        assert_eq!(crc24.octets, 11994318);
+        assert_eq!(crc24.code, 11994318);
     }
 
     #[test]
     fn long_string() {
         let input = b"A".repeat(2000);
-        let crc24 = Crc24::new(&input);
+        let crc24 = Crc24::from_payload(&input);
 
-        assert_eq!(crc24.octets, 11175483);
+        assert_eq!(crc24.code, 11175483);
     }
 }
