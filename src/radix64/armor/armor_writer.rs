@@ -56,9 +56,10 @@ impl ArmorWriter {
         let mut tail_line = String::new();
 
         if let Some(data_type) = &self.data_type {
-            let header_and_tail = self.construct_header_and_tail_line(&data_type);
-            header_line = header_and_tail.0;
-            tail_line = header_and_tail.1;
+            let data_type = data_type.to_string();
+
+            header_line = format!("-----BEGIN {}-----{}", data_type, LINE_ENDING);
+            tail_line = format!("-----END {}-----", data_type);
         }
 
         output.push_str(&header_line);
@@ -85,55 +86,6 @@ impl ArmorWriter {
         output.push_str(&tail_line);
 
         output
-    }
-
-    fn construct_header_and_tail_line(&self, data_type: &ArmorDataType) -> (String, String) {
-        let header_line;
-        let tail_line;
-
-        match data_type {
-            ArmorDataType::PgpMessage => {
-                header_line = String::from("BEGIN PGP MESSAGE");
-                tail_line = String::from("END PGP MESSAGE");
-            },
-            ArmorDataType::PgpPublicKeyBlock => {
-                header_line = String::from("BEGIN PGP PUBLIC KEY BLOCK");
-                tail_line = String::from("END PGP PUBLIC KEY BLOCK");
-            },
-            ArmorDataType::PgpPrivateKeyBlock => {
-                header_line = String::from("BEGIN PGP PRIVATE KEY BLOCK");
-                tail_line = String::from("END PGP PRIVATE KEY BLOCK");
-            },
-            ArmorDataType::PgpMessagePartXy(x, y) => {
-                header_line = format!("BEGIN PGP MESSAGE, PART {}/{}", x, y);
-                tail_line = format!("END PGP MESSAGE, PART {}/{}", x, y);
-            },
-            ArmorDataType::PgpMessagePartX(x) => {
-                header_line = format!("BEGIN PGP MESSAGE, PART {}", x);
-                tail_line = format!("END PGP MESSAGE, PART {}", x);
-            },
-            ArmorDataType::PgpSignature => {
-                header_line = String::from("BEGIN PGP SIGNATURE");
-                tail_line = String::from("END dummy"); // Not used
-            },
-            ArmorDataType::PgpSignedMessage => {
-                header_line = String::from("BEGIN PGP SIGNED MESSAGE");
-                tail_line = String::from("END PGP SIGNED MESSAGE");
-            },
-            ArmorDataType::PgpArmoredFile => {
-                header_line = String::from("BEGIN PGP ARMORED FILE");
-                tail_line = String::from("END PGP ARMORED FILE");
-            },
-            ArmorDataType::PgpSecretKeyBlock => {
-                header_line = String::from("BEGIN PGP SECRET KEY BLOCK");
-                tail_line = String::from("END PGP SECRET KEY BLOCK");
-            },
-        }
-
-        (
-            format!("-----{}-----{}", header_line, LINE_ENDING),
-            format!("-----{}-----", tail_line)
-        )
     }
 }
 
