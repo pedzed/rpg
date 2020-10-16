@@ -1,27 +1,19 @@
-// Example:
-//
-// -----BEGIN PGP MESSAGE-----
-// Version: OpenPrivacy 0.99
-//
-// yDgBO22WxBHv7O8X7O/jygAEzol56iUKiXmV+XmpCtmpqQUKiQrFqclFqUDBovzS
-// vBSFjNSiVHsuAA==
-// =njUN
-// -----END PGP MESSAGE-----
-
 use std::collections::HashMap;
 
 use super::armor_checksums::ArmorChecksum;
 use super::armor_data_types::ArmorDataType;
 use super::armor_headers::ArmorHeader;
+use super::super::armor::ArmorData;
+use super::super::armor::ArmorHeaderMap;
+use super::super::armor::LINE_ENDING;
 use super::super::coding::Radix64;
-use super::super::coding::LINE_ENDING;
 
 // 6.2.  Forming ASCII Armor
 // https://tools.ietf.org/html/rfc4880#section-6.2
 pub struct ArmorWriter {
     pub data_type: Option<ArmorDataType>,
-    headers: HashMap<ArmorHeader, Vec<String>>,
-    data: Option<Radix64>,
+    headers: ArmorHeaderMap,
+    data: Option<ArmorData>,
     checksum: Option<ArmorChecksum>,
 }
 

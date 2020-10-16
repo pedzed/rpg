@@ -1,10 +1,11 @@
 use std::str;
-use crate::radix64::tables;
+
+use super::tables;
+use super::armor::LINE_ENDING;
 
 /// The encoded output stream must be represented in lines of no more
 /// than 76 characters each according to RFC 4880. GnuPG uses 64.
 const LINE_LENGTH: usize = 64;
-pub const LINE_ENDING: &str = "\r\n";
 
 const BLOCKS_PER_OCTET: usize = 3;
 const BLOCKS_PER_SEXTET: usize = 4;

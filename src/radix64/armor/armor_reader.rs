@@ -1,13 +1,3 @@
-// Example:
-//
-// -----BEGIN PGP MESSAGE-----
-// Version: OpenPrivacy 0.99
-//
-// yDgBO22WxBHv7O8X7O/jygAEzol56iUKiXmV+XmpCtmpqQUKiQrFqclFqUDBovzS
-// vBSFjNSiVHsuAA==
-// =njUN
-// -----END PGP MESSAGE-----
-
 use std::io;
 use std::fs;
 use std::collections::HashMap;
@@ -16,14 +6,13 @@ use super::armor_checksums::ArmorChecksum;
 use super::armor_data_types::ArmorDataTypeError;
 use super::armor_data_types::ArmorDataType;
 use super::armor_headers::ArmorHeader;
+use super::super::armor::ArmorHeaderMap;
+use super::super::armor::ArmorData;
+use super::super::armor::LINE_ENDING;
 use super::super::coding::Radix64;
-use super::super::coding::LINE_ENDING; // TODO: Move to armor file
 
 #[derive(Debug, PartialEq)]
 pub struct ArmorReaderError(String);
-
-type ArmorHeaderMap = HashMap<ArmorHeader, Vec<String>>; // TODO: Move to armor file
-type ArmorData = Radix64; // TODO: Move to armor file
 
 // 6.2.  Forming ASCII Armor
 // https://tools.ietf.org/html/rfc4880#section-6.2
@@ -137,10 +126,6 @@ impl ArmorReader {
 
     fn is_tail_line(line: &str) -> bool {
         line.replace("-", "").trim().contains("END")
-    }
-
-    fn is_blank_line(line: &str) -> bool {
-        line.trim().len() == 0
     }
 
     fn is_checksum_line(line: &str) -> bool {
