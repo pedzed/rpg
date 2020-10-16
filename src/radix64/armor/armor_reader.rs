@@ -102,7 +102,7 @@ impl ArmorReader {
 
     fn parse_data(input: &str) -> Result<ArmorData, ArmorReaderError> {
         let data = input
-            .rsplitn(2, "\r\n\r\n").next().unwrap()
+            .rsplitn(2, &LINE_ENDING.repeat(2)).next().unwrap()
             .trim()
             .lines()
             .filter(|line| {
@@ -110,7 +110,7 @@ impl ArmorReader {
                 !Self::is_checksum_line(line)
             })
             .collect::<Vec<&str>>()
-            .join("\r\n") // ..
+            .join(LINE_ENDING)
         ;
 
         if data.len() > 0 {
