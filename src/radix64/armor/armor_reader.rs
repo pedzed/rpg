@@ -35,7 +35,7 @@ impl ArmorReader {
         let input = Self::normalize(input);
 
         let data_type = Self::parse_data_type(&input);
-        let headers = Self::parse_headers(&input);
+        let headers = Self::parse_data_headers(&input);
         let data = Self::parse_data(&input);
         let checksum = Self::parse_checksum(&input);
 
@@ -70,29 +70,21 @@ impl ArmorReader {
         ArmorDataType::from_str(stripped_header_line)
     }
 
-    fn parse_headers(input: &str) -> ArmorHeaderMap {
+    fn parse_data_headers(input: &str) -> ArmorHeaderMap {
         let mut output = HashMap::new();
 
         input.lines()
-            .for_each(|line| {
-                if !line.contains(":") {
-                    return
-                }
-
-                let split: Vec<&str> = line.split(":").collect();
-
-                if split.len() != 2 {
-                    return
-                }
-
-                let key = ArmorHeader::from_str(split[0]);
+            .filter(|line| Self::is_data_header_line(line))
+            .map(|line| line.split(":").collect::<Vec<&str>>())
+            .for_each(|header| {
+                let key = ArmorHeader::from_str(header[0]);
 
                 if key.is_err() {
                     // TODO: Log failure
                     return
                 }
 
-                let value = split[1].trim();
+                let value = header[1].trim();
 
                 output
                     .entry(key.unwrap())
@@ -102,6 +94,10 @@ impl ArmorReader {
         ;
 
         output
+    }
+
+    fn is_data_header_line(line: &str) -> bool {
+        line.contains(":")
     }
 
     fn parse_data(input: &str) -> Result<ArmorData, ArmorReaderError> {
@@ -187,6 +183,21 @@ mod tests {
         ");
 
         assert_eq!(armor.data_type, Ok(ArmorDataType::PgpMessagePartXy(2, 3)));
+    }
+
+    #[test]
+    fn header_without_value() {
+        let armor = ArmorReader::read_str("\
+            Version:\r\n\
+            \r\n\
+            SGVsbG8=\r\n\
+            =EHJM\r\n\
+        ");
+
+        assert_eq!(
+            armor.headers.get(&ArmorHeader::Version),
+            Some(&vec![String::new()])
+        );
     }
 
     #[test]
