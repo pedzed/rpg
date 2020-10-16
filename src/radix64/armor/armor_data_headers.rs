@@ -1,8 +1,8 @@
 #[derive(Debug, PartialEq)]
-pub struct ArmorHeaderError(String);
+pub struct ArmorDataHeaderError(String);
 
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub enum ArmorHeader {
+pub enum ArmorDataHeader {
     // "Version", which states the OpenPGP implementation and version
     // used to encode the message.
     Version,
@@ -48,15 +48,15 @@ pub enum ArmorHeader {
     Charset,
 }
 
-impl ArmorHeader {
-    pub fn from_str(input: &str) -> Result<Self, ArmorHeaderError> {
+impl ArmorDataHeader {
+    pub fn from_str(input: &str) -> Result<Self, ArmorDataHeaderError> {
         match input {
             "Version" => Ok(Self::Version),
             "Comment" => Ok(Self::Comment),
             "MessageID" => Ok(Self::MessageId),
             "Hash" => Ok(Self::Hash),
             "Charset" => Ok(Self::Charset),
-            x => Err(ArmorHeaderError(format!("Unknown Armor header `{}`.", x))),
+            x => Err(ArmorDataHeaderError(format!("Unknown Armor data header `{}`.", x))),
         }
     }
 
@@ -77,19 +77,19 @@ mod tests {
 
     #[test]
     fn str_to_enum_for_messageid() {
-        assert_eq!(ArmorHeader::from_str("MessageID").unwrap(), ArmorHeader::MessageId);
+        assert_eq!(ArmorDataHeader::from_str("MessageID").unwrap(), ArmorDataHeader::MessageId);
     }
 
     #[test]
     fn str_to_enum_fails_for_invalid_input() {
         assert_eq!(
-            ArmorHeader::from_str("InvalidInput"),
-            Err(ArmorHeaderError(String::from("Unknown Armor header `InvalidInput`.")))
+            ArmorDataHeader::from_str("InvalidInput"),
+            Err(ArmorDataHeaderError(String::from("Unknown Armor data header `InvalidInput`.")))
         );
     }
 
     #[test]
     fn enum_to_str_for_messageid() {
-        assert_eq!(ArmorHeader::MessageId.to_str(), "MessageID");
+        assert_eq!(ArmorDataHeader::MessageId.to_str(), "MessageID");
     }
 }

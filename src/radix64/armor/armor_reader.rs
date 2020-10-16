@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use super::armor_checksums::ArmorChecksum;
 use super::armor_data_types::ArmorDataTypeError;
 use super::armor_data_types::ArmorDataType;
-use super::armor_headers::ArmorHeader;
-use super::super::armor::ArmorHeaderMap;
+use super::armor_data_headers::ArmorDataHeader;
+use super::super::armor::ArmorDataHeaderMap;
 use super::super::armor::ArmorData;
 use super::super::armor::LINE_ENDING;
 use super::super::coding::Radix64;
@@ -19,7 +19,7 @@ pub struct ArmorReaderError(String);
 #[derive(Debug)]
 pub struct ArmorReader {
     data_type: Result<ArmorDataType, ArmorDataTypeError>,
-    headers: ArmorHeaderMap,
+    data_headers: ArmorDataHeaderMap,
     data: Result<ArmorData, ArmorReaderError>,
     checksum: Result<ArmorChecksum, ArmorReaderError>,
 }
@@ -35,13 +35,13 @@ impl ArmorReader {
         let input = Self::normalize(input);
 
         let data_type = Self::parse_data_type(&input);
-        let headers = Self::parse_data_headers(&input);
+        let data_headers = Self::parse_data_headers(&input);
         let data = Self::parse_data(&input);
         let checksum = Self::parse_checksum(&input);
 
         Self {
             data_type,
-            headers,
+            data_headers,
             data,
             checksum,
         }
@@ -70,21 +70,21 @@ impl ArmorReader {
         ArmorDataType::from_str(stripped_header_line)
     }
 
-    fn parse_data_headers(input: &str) -> ArmorHeaderMap {
+    fn parse_data_headers(input: &str) -> ArmorDataHeaderMap {
         let mut output = HashMap::new();
 
         input.lines()
             .filter(|line| Self::is_data_header_line(line))
             .map(|line| line.split(":").collect::<Vec<&str>>())
-            .for_each(|header| {
-                let key = ArmorHeader::from_str(header[0]);
+            .for_each(|data_header| {
+                let key = ArmorDataHeader::from_str(data_header[0]);
 
                 if key.is_err() {
                     // TODO: Log failure
                     return
                 }
 
-                let value = header[1].trim();
+                let value = data_header[1].trim();
 
                 output
                     .entry(key.unwrap())
@@ -195,13 +195,13 @@ mod tests {
         ");
 
         assert_eq!(
-            armor.headers.get(&ArmorHeader::Version),
+            armor.data_headers.get(&ArmorDataHeader::Version),
             Some(&vec![String::new()])
         );
     }
 
     #[test]
-    fn single_header() {
+    fn single_data_header() {
         let armor = ArmorReader::read_str("\
             Version: OpenPrivacy 0.99\r\n\
             \r\n\
@@ -210,13 +210,13 @@ mod tests {
         ");
 
         assert_eq!(
-            armor.headers.get(&ArmorHeader::Version),
+            armor.data_headers.get(&ArmorDataHeader::Version),
             Some(&vec![String::from("OpenPrivacy 0.99")])
         );
     }
 
     #[test]
-    fn multiple_headers_with_same_key() {
+    fn multiple_data_headers_with_same_key() {
         let armor = ArmorReader::read_str("\
             Comment: Comment on first line\r\n\
             Comment: And also on second line\r\n\
@@ -226,7 +226,7 @@ mod tests {
         ");
 
         assert_eq!(
-            armor.headers.get(&ArmorHeader::Comment),
+            armor.data_headers.get(&ArmorDataHeader::Comment),
             Some(&vec![
                 String::from("Comment on first line"),
                 String::from("And also on second line"),
@@ -235,7 +235,7 @@ mod tests {
     }
 
     #[test]
-    fn multiple_headers_with_different_keys() {
+    fn multiple_data_headers_with_different_keys() {
         let armor = ArmorReader::read_str("\
             Comment: Comment on first line\r\n\
             Comment: And also on second line\r\n\
@@ -246,14 +246,14 @@ mod tests {
         ");
 
         assert_eq!(
-            armor.headers.get(&ArmorHeader::Comment),
+            armor.data_headers.get(&ArmorDataHeader::Comment),
             Some(&vec![
                 String::from("Comment on first line"),
                 String::from("And also on second line"),
             ])
         );
         assert_eq!(
-            armor.headers.get(&ArmorHeader::Charset),
+            armor.data_headers.get(&ArmorDataHeader::Charset),
             Some(&vec![String::from("UTF-8")])
         );
     }
@@ -290,7 +290,7 @@ mod tests {
 
         assert_eq!(armor.data_type.unwrap(), ArmorDataType::PgpMessage);
 
-        assert_eq!(armor.headers.len(), 2);
+        assert_eq!(armor.data_headers.len(), 2);
 
         let data = armor.data.unwrap();
         assert_eq!(data.encoded, "SGVsbG8=");
@@ -378,7 +378,7 @@ mod tests {
 
     //     assert_eq!(armor.data_type.unwrap(), ArmorDataType::PgpMessage);
 
-    //     assert_eq!(armor.headers.len(), 8);
+    //     assert_eq!(armor.data_headers.len(), 8);
 
     //     let data = armor.data.unwrap();
     //     // assert_eq!(data.encoded, "SGVsbG8=");

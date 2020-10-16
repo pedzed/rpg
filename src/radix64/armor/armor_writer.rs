@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use super::armor_checksums::ArmorChecksum;
 use super::armor_data_types::ArmorDataType;
-use super::armor_headers::ArmorHeader;
+use super::armor_data_headers::ArmorDataHeader;
 use super::super::armor::ArmorData;
-use super::super::armor::ArmorHeaderMap;
+use super::super::armor::ArmorDataHeaderMap;
 use super::super::armor::LINE_ENDING;
 use super::super::coding::Radix64;
 
@@ -12,7 +12,7 @@ use super::super::coding::Radix64;
 // https://tools.ietf.org/html/rfc4880#section-6.2
 pub struct ArmorWriter {
     pub data_type: Option<ArmorDataType>,
-    headers: ArmorHeaderMap,
+    data_headers: ArmorDataHeaderMap,
     data: Option<ArmorData>,
     checksum: Option<ArmorChecksum>,
 }
@@ -21,14 +21,14 @@ impl ArmorWriter {
     pub fn new() -> Self {
         Self {
             data_type: None,
-            headers: HashMap::new(),
+            data_headers: HashMap::new(),
             data: None,
             checksum: None,
         }
     }
 
-    pub fn add_header(&mut self, key: ArmorHeader, value: &str) {
-        self.headers
+    pub fn add_data_header(&mut self, key: ArmorDataHeader, value: &str) {
+        self.data_headers
             .entry(key)
             .or_insert_with(Vec::new)
             .push(value.to_string())
@@ -56,7 +56,7 @@ impl ArmorWriter {
 
         output.push_str(&header_line);
 
-        for (key, values) in &self.headers {
+        for (key, values) in &self.data_headers {
             for value in values {
                 let header = &format!("{}: {}{}", key.to_str(), value, LINE_ENDING);
                 output.push_str(header);
@@ -129,9 +129,9 @@ mod tests {
     }
 
     #[test]
-    fn write_single_header() {
+    fn write_single_data_header() {
         let mut armor = ArmorWriter::new();
-        armor.add_header(ArmorHeader::Version, "OpenPrivacy 0.99");
+        armor.add_data_header(ArmorDataHeader::Version, "OpenPrivacy 0.99");
 
         assert_eq!(armor.write_unsafe(), "\
             Version: OpenPrivacy 0.99\r\n\
@@ -140,10 +140,10 @@ mod tests {
     }
 
     #[test]
-    fn write_multiple_headers_with_single_key() {
+    fn write_multiple_data_headers_with_single_key() {
         let mut armor = ArmorWriter::new();
-        armor.add_header(ArmorHeader::Comment, "Comment on first line");
-        armor.add_header(ArmorHeader::Comment, "And also on second line");
+        armor.add_data_header(ArmorDataHeader::Comment, "Comment on first line");
+        armor.add_data_header(ArmorDataHeader::Comment, "And also on second line");
 
         assert_eq!(armor.write_unsafe(), "\
             Comment: Comment on first line\r\n\
@@ -153,11 +153,11 @@ mod tests {
     }
 
     #[test]
-    fn write_multiple_headers_with_multiple_keys() {
+    fn write_multiple_data_headers_with_multiple_keys() {
         let mut armor = ArmorWriter::new();
-        armor.add_header(ArmorHeader::Comment, "Comment on first line");
-        armor.add_header(ArmorHeader::Comment, "And also on second line");
-        armor.add_header(ArmorHeader::Charset, "UTF-8");
+        armor.add_data_header(ArmorDataHeader::Comment, "Comment on first line");
+        armor.add_data_header(ArmorDataHeader::Comment, "And also on second line");
+        armor.add_data_header(ArmorDataHeader::Charset, "UTF-8");
 
         let armor = armor.write_unsafe();
 
@@ -195,14 +195,14 @@ mod tests {
     fn everything_with_binary_data() {
         let mut armor = ArmorWriter::new();
             armor.data_type = Some(ArmorDataType::PgpMessage);
-            armor.add_header(ArmorHeader::Version, "OpenPrivacy 0.99");
-            armor.add_header(ArmorHeader::Comment, "Note that some transport methods are sensitive to line length.  While");
-            armor.add_header(ArmorHeader::Comment, "there is a limit of 76 characters for the Radix-64 data (Section");
-            armor.add_header(ArmorHeader::Comment, "6.3), there is no limit to the length of Armor Headers.  Care should");
-            armor.add_header(ArmorHeader::Comment, "be taken that the Armor Headers are short enough to survive");
-            armor.add_header(ArmorHeader::Comment, "transport.  One way to do this is to repeat an Armor Header key");
-            armor.add_header(ArmorHeader::Comment, "multiple times with different values for each so that no one line is");
-            armor.add_header(ArmorHeader::Comment, "overly long.");
+            armor.add_data_header(ArmorDataHeader::Version, "OpenPrivacy 0.99");
+            armor.add_data_header(ArmorDataHeader::Comment, "Note that some transport methods are sensitive to line length.  While");
+            armor.add_data_header(ArmorDataHeader::Comment, "there is a limit of 76 characters for the Radix-64 data (Section");
+            armor.add_data_header(ArmorDataHeader::Comment, "6.3), there is no limit to the length of Armor Headers.  Care should");
+            armor.add_data_header(ArmorDataHeader::Comment, "be taken that the Armor Headers are short enough to survive");
+            armor.add_data_header(ArmorDataHeader::Comment, "transport.  One way to do this is to repeat an Armor Header key");
+            armor.add_data_header(ArmorDataHeader::Comment, "multiple times with different values for each so that no one line is");
+            armor.add_data_header(ArmorDataHeader::Comment, "overly long.");
 
             let data_bytes = fs::read("tests/resources/gnupg-icon.png").unwrap();
             armor.set_data(data_bytes);
