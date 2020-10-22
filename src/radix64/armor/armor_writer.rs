@@ -1,12 +1,18 @@
+use std::str;
 use std::collections::HashMap;
 
 use super::armor_checksums::ArmorChecksum;
 use super::armor_data_types::ArmorDataType;
 use super::armor_data_headers::ArmorDataHeader;
-use super::super::armor::ArmorData;
 use super::super::armor::ArmorDataHeaderMap;
 use super::super::armor::LINE_ENDING;
-use super::super::coding::Radix64;
+use super::super::coding::encoder::Radix64Encoder;
+
+/// The encoded output stream must be represented in lines of no more
+/// than 76 characters each according to RFC 4880. GnuPG uses 64.
+const LINE_LENGTH: usize = 64;
+
+type ArmorData = Vec<u8>;
 
 // 6.2.  Forming ASCII Armor
 // https://tools.ietf.org/html/rfc4880#section-6.2
@@ -35,9 +41,9 @@ impl ArmorWriter {
         ;
     }
 
-    pub fn set_data(&mut self, data: Vec<u8>) {
-        self.checksum = Some(ArmorChecksum::from_payload(&data.as_slice()));
-        self.data = Some(Radix64::encode(data));
+    pub fn set_data(&mut self, data: &[u8]) {
+        self.checksum = Some(ArmorChecksum::from_payload(data));
+        self.data = Some(Radix64Encoder::encode(data));
     }
 
     /// Does not err if provided data is incomplete
@@ -66,7 +72,7 @@ impl ArmorWriter {
         output.push_str(LINE_ENDING);
 
         if let Some(data) = &self.data {
-            output.push_str(&data.encoded);
+            output.push_str(&Self::split_armor_data_into_new_lines(data));
             output.push_str(LINE_ENDING);
         }
 
@@ -76,6 +82,18 @@ impl ArmorWriter {
         }
 
         output.push_str(&tail_line);
+
+        output
+    }
+
+    fn split_armor_data_into_new_lines(data: &[u8]) -> String {
+        let output = data
+            .chunks(LINE_LENGTH)
+            .map(str::from_utf8)
+            .collect::<Result<Vec<&str>, _>>()
+            .unwrap()
+            .join(LINE_ENDING)
+        ;
 
         output
     }
@@ -181,7 +199,7 @@ mod tests {
     #[test]
     fn set_data() {
         let mut armor = ArmorWriter::new();
-        armor.set_data(b"Hello".to_vec());
+        armor.set_data(b"Hello");
 
         // Encoded data and calculated checksum
         assert_eq!(armor.write_unsafe(), "\
@@ -205,7 +223,7 @@ mod tests {
             armor.add_data_header(ArmorDataHeader::Comment, "overly long.");
 
             let data_bytes = fs::read("tests/resources/gnupg-icon.png").unwrap();
-            armor.set_data(data_bytes);
+            armor.set_data(&data_bytes);
         let armor = armor.write_unsafe();
 
         let mut lines: Vec<&str> = armor.lines().map(From::from).collect();

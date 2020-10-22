@@ -1,4 +1,4 @@
-use crate::radix64::coding::INVALID_VALUE;
+pub const INVALID_VALUE: u8 = 255;
 
 pub const STD_ENCODE: &[u8; 64] = &[
     65,            // input   0 (0x00) => 'A' (0x41)

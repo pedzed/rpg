@@ -1,4 +1,5 @@
-use super::coding::Radix64;
+use super::coding::encoder::Radix64Encoder;
+use super::coding::decoder::Radix64Decoder;
 
 type Crc24Code = u32;
 
@@ -8,12 +9,12 @@ const CRC24_POLY: Crc24Code = 0x864CFB;
 #[derive(Debug)]
 pub struct Crc24 {
     pub code: Crc24Code,
-    pub encoded: String,
+    pub encoded: Vec<u8>,
 }
 
 impl Crc24 {
-    pub fn from_encoded(encoded: &str) -> Self {
-        let decoded = Radix64::decode(encoded).unencoded;
+    pub fn from_encoded(encoded: &[u8]) -> Self { // TODO: Unit test
+        let decoded = Radix64Decoder::decode(encoded).unwrap(); // TODO: Proper error handling
 
         let code: Crc24Code =
             (decoded[0] as Crc24Code) << 16 |
@@ -23,20 +24,22 @@ impl Crc24 {
 
         Self {
             code,
-            encoded: String::from(encoded),
+            encoded: encoded.to_vec(),
         }
     }
 
     pub fn from_payload(input: &[u8]) -> Self {
         let code = Self::calculate_code(input);
 
+        let encoded = Radix64Encoder::encode(&vec![
+            (code >> 16) as u8,
+            (code >> 8) as u8,
+            (code >> 0) as u8,
+        ]);
+
         Self {
             code,
-            encoded: Radix64::encode(vec![
-                (code >> 16) as u8,
-                (code >> 8) as u8,
-                (code >> 0) as u8,
-            ]).encoded,
+            encoded,
         }
     }
 

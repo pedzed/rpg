@@ -1,3 +1,5 @@
+use std::str;
+
 use super::super::crc24::Crc24;
 
 #[derive(Debug)]
@@ -7,7 +9,7 @@ pub struct ArmorChecksum {
 
 impl ArmorChecksum {
     pub fn new(checksum: &str) -> Self {
-        let crc24 = Crc24::from_encoded(&checksum[1..]);
+        let crc24 = Crc24::from_encoded(&checksum[1..].as_bytes());
 
         Self {
             crc24,
@@ -23,7 +25,8 @@ impl ArmorChecksum {
     }
 
     pub fn get(&self) -> String {
-        format!("={}", self.crc24.encoded)
+        let encoded_str = str::from_utf8(&self.crc24.encoded).unwrap(); // TODO: Proper error handling
+        format!("={}", encoded_str)
     }
 
     pub fn verify(&self, raw_data: &[u8]) -> bool {
