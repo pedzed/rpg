@@ -1,5 +1,5 @@
-use super::round_key::Element;
-use super::sbox_tables::SBOX;
+use super::super::round_key::Element;
+use super::super::sbox_tables::SBOX;
 
 /// The amount of elements in a single column or "word"
 ///

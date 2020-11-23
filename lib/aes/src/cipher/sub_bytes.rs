@@ -1,8 +1,7 @@
 pub struct SubBytes;
 
-use super::state::State;
-use super::sbox_tables::SBOX;
-use super::sbox_tables::INV_SBOX;
+use super::super::state::State;
+use super::super::sbox_tables::{SBOX, INV_SBOX};
 
 impl SubBytes {
     pub fn sub_bytes(state: State) -> State {

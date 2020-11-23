@@ -1,6 +1,6 @@
 pub struct ShiftRows;
 
-use super::state::State;
+use super::super::state::State;
 
 impl ShiftRows {
     pub fn shift_rows(state: State) -> State {

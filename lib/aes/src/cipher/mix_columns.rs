@@ -1,6 +1,6 @@
 pub struct MixColumns;
 
-use super::state::State;
+use super::super::state::State;
 
 impl MixColumns {
     pub fn mix_columns(state: State) -> State {
