@@ -1,68 +1,66 @@
-use std::ops::Index;
-use std::slice::Iter;
-use std::iter::FromIterator;
+mod add_round_key;
+mod sub_bytes;
+mod shift_rows;
+mod mix_columns;
 
-type Row = usize;
-type Column = usize;
+use super::block;
+use super::block::Block;
+use super::round_key::RoundKey;
 
-pub type Element = u8;
-pub type Elements = [Element; State::CAPACITY];
+pub use super::state::add_round_key::AddRoundKey;
+pub use super::state::sub_bytes::SubBytes;
+pub use super::state::shift_rows::ShiftRows;
+pub use super::state::mix_columns::MixColumns;
 
-/// The State of an AES block
-///
-/// Stored as a one-dimensional list of bytes.
-///
-/// | 0  1  2  3|
-/// | 4  5  6  7|
-/// | 8  9 10 11|
-/// |12 13 14 15|
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, Default)]
 pub struct State {
-    elements: Elements,
+    pub elements: Block,
 }
 
 impl State {
-    const ROWS: Row = 4;
-    const COLUMNS: Column = 4;
-    pub const CAPACITY: usize = Self::ROWS * Self::COLUMNS;
-
-    pub fn new(elements: Elements) -> Self {
+    pub fn new(elements: Block) -> Self {
         Self {
             elements,
         }
     }
-
-    pub fn iter(&self) -> Iter<Element> {
-        self.elements.iter()
-    }
 }
 
-impl Index<(Row, Column)> for State {
-    type Output = Element;
+impl From<State> for [u8; block::SIZE] {
+    fn from(state: State) -> Self {
+        let mut elements = [0; block::SIZE];
 
-    fn index(&self, index: (Row, Column)) -> &Self::Output {
-        let (row, col) = index;
-        &self.elements[col + row * 4]
-    }
-}
+        let mut i: usize = 0;
 
-impl Index<usize> for State {
-    type Output = u8;
+        for r in 0..block::ROW_COUNT {
+            for c in 0..block::COLUMN_COUNT {
+                elements[i] = state.elements[r][c];
+                i += 1;
+            }
+        }
 
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.elements[index]
-    }
-}
+        elements
 
-impl FromIterator<Element> for State {
-    fn from_iter<I: IntoIterator<Item=Element>>(iter: I) -> Self {
-        let mut state = Self::default();
+        // [
+        //     state.elements[0][0],
+        //     state.elements[0][1],
+        //     state.elements[0][2],
+        //     state.elements[0][3],
 
-        iter.into_iter()
-            .zip(&mut state.elements)
-            .for_each(|(value, slot)| *slot = value);
+        //     state.elements[1][0],
+        //     state.elements[1][1],
+        //     state.elements[1][2],
+        //     state.elements[1][3],
 
-        state
+        //     state.elements[2][0],
+        //     state.elements[2][1],
+        //     state.elements[2][2],
+        //     state.elements[2][3],
+
+        //     state.elements[3][0],
+        //     state.elements[3][1],
+        //     state.elements[3][2],
+        //     state.elements[3][3],
+        // ]
     }
 }
 
@@ -71,62 +69,21 @@ mod tests {
     use super::State;
 
     #[test]
-    fn can_index_by_single_indice() {
+    fn flatten() {
         let state = State::new([
-            0x00, 0x01, 0x02, 0x03,
-            0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0A, 0x0B,
-            0x0C, 0x0D, 0x0E, 0x0E,
+            [0x00, 0x11, 0x22, 0x33],
+            [0x44, 0x55, 0x66, 0x77],
+            [0x88, 0x99, 0xAA, 0xBB],
+            [0xCC, 0xDD, 0xEE, 0xFF],
         ]);
 
-        assert_eq!(state[7], 0x07);
-    }
+        let state: [u8; 16] = state.into();
 
-    #[test]
-    fn can_index_top_left() {
-        let state = State::new([
-            0x00, 0x01, 0x02, 0x03,
-            0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0A, 0x0B,
-            0x0C, 0x0D, 0x0E, 0x0E,
+        assert_eq!(state, [
+            0x00, 0x11, 0x22, 0x33,
+            0x44, 0x55, 0x66, 0x77,
+            0x88, 0x99, 0xAA, 0xBB,
+            0xCC, 0xDD, 0xEE, 0xFF,
         ]);
-
-        assert_eq!(state[(0, 0)], 0x00);
-    }
-
-    #[test]
-    fn can_index_top_right() {
-        let state = State::new([
-            0x00, 0x01, 0x02, 0x03,
-            0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0A, 0x0B,
-            0x0C, 0x0D, 0x0E, 0x0E,
-        ]);
-
-        assert_eq!(state[(0, 3)], 0x03);
-    }
-
-    #[test]
-    fn can_index_bottom_left() {
-        let state = State::new([
-            0x00, 0x01, 0x02, 0x03,
-            0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0A, 0x0B,
-            0x0C, 0x0D, 0x0E, 0x0E,
-        ]);
-
-        assert_eq!(state[(3, 0)], 0x0C);
-    }
-
-    #[test]
-    fn can_index_bottom_right() {
-        let state = State::new([
-            0x00, 0x01, 0x02, 0x03,
-            0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0A, 0x0B,
-            0x0C, 0x0D, 0x0E, 0x0E,
-        ]);
-
-        assert_eq!(state[(3, 3)], 0x0E);
     }
 }

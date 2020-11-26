@@ -1,4 +1,3 @@
-use super::state;
+use super::block::Block;
 
-pub type Element = state::Element;
-pub type RoundKey = state::State;
+pub type RoundKey = Block;
