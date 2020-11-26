@@ -11,8 +11,6 @@ pub fn rcon(round_number: usize) -> u8 {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn rcon() {
         let rcon_list: [u8; 11] =
