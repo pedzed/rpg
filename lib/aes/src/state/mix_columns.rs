@@ -8,43 +8,41 @@ pub trait MixColumns {
 
 impl MixColumns for State {
     fn mix_columns(&mut self) {
-        let mut t: [u8; 4] = [0; 4];
-
         let gmul_1 = |e| e;
         let gmul_2 = |e| gmul(e, 0x02);
         let gmul_3 = |e| gmul(e, 0x03);
 
         for c in 0..block::COLUMN_COUNT {
-            t[0] = self.elements[0][c];
-            t[1] = self.elements[1][c];
-            t[2] = self.elements[2][c];
-            t[3] = self.elements[3][c];
+            let mut t: [u8; 4] = [0; 4];
+            t[0] = self.elements[c][0];
+            t[1] = self.elements[c][1];
+            t[2] = self.elements[c][2];
+            t[3] = self.elements[c][3];
 
-            self.elements[0][c] = gmul_2(t[0]) ^ gmul_3(t[1]) ^ gmul_1(t[2]) ^ gmul_1(t[3]);
-            self.elements[1][c] = gmul_1(t[0]) ^ gmul_2(t[1]) ^ gmul_3(t[2]) ^ gmul_1(t[3]);
-            self.elements[2][c] = gmul_1(t[0]) ^ gmul_1(t[1]) ^ gmul_2(t[2]) ^ gmul_3(t[3]);
-            self.elements[3][c] = gmul_3(t[0]) ^ gmul_1(t[1]) ^ gmul_1(t[2]) ^ gmul_2(t[3]);
+            self.elements[c][0] = gmul_2(t[0]) ^ gmul_3(t[1]) ^ gmul_1(t[2]) ^ gmul_1(t[3]);
+            self.elements[c][1] = gmul_1(t[0]) ^ gmul_2(t[1]) ^ gmul_3(t[2]) ^ gmul_1(t[3]);
+            self.elements[c][2] = gmul_1(t[0]) ^ gmul_1(t[1]) ^ gmul_2(t[2]) ^ gmul_3(t[3]);
+            self.elements[c][3] = gmul_3(t[0]) ^ gmul_1(t[1]) ^ gmul_1(t[2]) ^ gmul_2(t[3]);
         }
     }
 
     fn inv_mix_columns(&mut self) {
-        let mut t: [u8; 4] = [0; 4];
-
         let gmul_9 = |e| gmul(e, 0x09);
         let gmul_11 = |e| gmul(e, 0x0B);
         let gmul_13 = |e| gmul(e, 0x0D);
         let gmul_14 = |e| gmul(e, 0x0E);
 
         for c in 0..block::COLUMN_COUNT {
-            t[0] = self.elements[0][c];
-            t[1] = self.elements[1][c];
-            t[2] = self.elements[2][c];
-            t[3] = self.elements[3][c];
+            let mut t: [u8; 4] = [0; 4];
+            t[0] = self.elements[c][0];
+            t[1] = self.elements[c][1];
+            t[2] = self.elements[c][2];
+            t[3] = self.elements[c][3];
 
-            self.elements[0][c] = gmul_14(t[0]) ^ gmul_11(t[1]) ^ gmul_13(t[2]) ^ gmul_9(t[3]);
-            self.elements[1][c] = gmul_9(t[0]) ^ gmul_14(t[1]) ^ gmul_11(t[2]) ^ gmul_13(t[3]);
-            self.elements[2][c] = gmul_13(t[0]) ^ gmul_9(t[1]) ^ gmul_14(t[2]) ^ gmul_11(t[3]);
-            self.elements[3][c] = gmul_11(t[0]) ^ gmul_13(t[1]) ^ gmul_9(t[2]) ^ gmul_14(t[3]);
+            self.elements[c][0] = gmul_14(t[0]) ^ gmul_11(t[1]) ^ gmul_13(t[2]) ^ gmul_9(t[3]);
+            self.elements[c][1] = gmul_9(t[0]) ^ gmul_14(t[1]) ^ gmul_11(t[2]) ^ gmul_13(t[3]);
+            self.elements[c][2] = gmul_13(t[0]) ^ gmul_9(t[1]) ^ gmul_14(t[2]) ^ gmul_11(t[3]);
+            self.elements[c][3] = gmul_11(t[0]) ^ gmul_13(t[1]) ^ gmul_9(t[2]) ^ gmul_14(t[3]);
         }
     }
 }
@@ -77,38 +75,38 @@ mod tests {
     #[test]
     fn mix_columns() {
         let mut state = State::new([
-            [0xD4, 0xE0, 0xB8, 0x1E],
-            [0xBF, 0xB4, 0x41, 0x27],
-            [0x5D, 0x52, 0x11, 0x98],
-            [0x30, 0xAE, 0xF1, 0xE5],
+            [0xD4, 0xBF, 0x5D, 0x30],
+            [0xE0, 0xB4, 0x52, 0xAE],
+            [0xB8, 0x41, 0x11, 0xF1],
+            [0x1E, 0x27, 0x98, 0xE5],
         ]);
 
         state.mix_columns();
 
         assert_eq!(state.elements, [
-            [0x04, 0xE0, 0x48, 0x28],
-            [0x66, 0xCB, 0xF8, 0x06],
-            [0x81, 0x19, 0xD3, 0x26],
-            [0xE5, 0x9A, 0x7A, 0x4C],
+            [0x04, 0x66, 0x81, 0xE5],
+            [0xE0, 0xCB, 0x19, 0x9A],
+            [0x48, 0xF8, 0xD3, 0x7A],
+            [0x28, 0x06, 0x26, 0x4C],
         ]);
     }
 
     #[test]
     fn inv_mix_columns() {
         let mut state = State::new([
-            [0x04, 0xE0, 0x48, 0x28],
-            [0x66, 0xCB, 0xF8, 0x06],
-            [0x81, 0x19, 0xD3, 0x26],
-            [0xE5, 0x9A, 0x7A, 0x4C],
+            [0x04, 0x66, 0x81, 0xE5],
+            [0xE0, 0xCB, 0x19, 0x9A],
+            [0x48, 0xF8, 0xD3, 0x7A],
+            [0x28, 0x06, 0x26, 0x4C],
         ]);
 
         state.inv_mix_columns();
 
         assert_eq!(state.elements, [
-            [0xD4, 0xE0, 0xB8, 0x1E],
-            [0xBF, 0xB4, 0x41, 0x27],
-            [0x5D, 0x52, 0x11, 0x98],
-            [0x30, 0xAE, 0xF1, 0xE5],
+            [0xD4, 0xBF, 0x5D, 0x30],
+            [0xE0, 0xB4, 0x52, 0xAE],
+            [0xB8, 0x41, 0x11, 0xF1],
+            [0x1E, 0x27, 0x98, 0xE5],
         ]);
     }
 }

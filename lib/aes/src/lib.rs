@@ -68,31 +68,29 @@ macro_rules! define_aes_cipher {
                     let mut expanded: ExpandedKeyWords = [[0; 4]; Self::EXPANDED_KEY_WORD_COUNT];
 
                     // Populating the cipher key
-                    for word_index in 0..Self::Nk {
-                        for element_index in 0..Self::Nb {
-                            let key_element_index = word_index + Self::Nk * element_index;
-                            expanded[word_index][element_index] = cipher_key[key_element_index];
+                    for c in 0..Self::Nk {
+                        for r in 0..Self::Nb {
+                            let key_element_index = r + Self::Nk * c;
+                            expanded[c][r] = cipher_key[key_element_index];
                         }
                     }
 
                     // Populating the rest of the expanded key
-                    for word_index in Self::Nk..Self::EXPANDED_KEY_WORD_COUNT {
-                        let mut temp_word: Word = expanded[word_index-1];
+                    for c in Self::Nk..Self::EXPANDED_KEY_WORD_COUNT {
+                        let mut temp_word: Word = expanded[c-1];
 
-                        if word_index % Self::Nk == 0 {
+                        if c % Self::Nk == 0 {
                             temp_word.rot_word();
                             temp_word.sub_word();
 
-                            let round_number = word_index / Self::Nk;
+                            let round_number = c / Self::Nk;
                             temp_word[0] ^= rcon(round_number);
-                        } else if Self::Nk > 6 && word_index % Self::Nk == 4 {
+                        } else if Self::Nk > 6 && c % Self::Nk == 4 {
                             temp_word.sub_word();
                         }
 
-                        let x_offset = word_index - Self::Nk;
-
-                        for (i, _) in temp_word.iter().enumerate() {
-                            expanded[word_index][i] = expanded[x_offset][i] ^ temp_word[i];
+                        for (r, _) in temp_word.iter().enumerate() {
+                            expanded[c][r] = expanded[c - Self::Nk][r] ^ temp_word[r];
                         }
                     }
 
@@ -106,11 +104,6 @@ macro_rules! define_aes_cipher {
                         [plain_text[4], plain_text[5], plain_text[6], plain_text[7]],
                         [plain_text[8], plain_text[9], plain_text[10], plain_text[11]],
                         [plain_text[12], plain_text[13], plain_text[14], plain_text[15]],
-
-                        // [plain_text[0], plain_text[4], plain_text[8], plain_text[12]],
-                        // [plain_text[1], plain_text[5], plain_text[9], plain_text[13]],
-                        // [plain_text[2], plain_text[6], plain_text[10], plain_text[14]],
-                        // [plain_text[3], plain_text[7], plain_text[11], plain_text[15]],
                     ]);
 
                     state.add_round_key(self.round_key(0));
@@ -132,13 +125,12 @@ macro_rules! define_aes_cipher {
                 fn round_key(&self, round_index: usize) -> RoundKey {
                     let mut output: RoundKey = RoundKey::default();
 
-                    for r in 0..block::ROW_COUNT {
-                        for c in 0..block::COLUMN_COUNT {
-                            output[r][c] = self.expanded_key_words[round_index * 4 + c][r];
+                    for c in 0..block::COLUMN_COUNT {
+                        for r in 0..block::ROW_COUNT {
+                            output[c][r] = self.expanded_key_words[round_index * 4 + c][r];
                         }
                     }
 
-output[3][3] = output[3][3];
                     output
                 }
             }
@@ -158,11 +150,11 @@ mod tests {
 
     #[test]
     fn aes_128_encrypt_one_full_block() {
-        let plain_text = (0x00112233445566778899AABBCCDDEEFF as u128).to_be_bytes();
-        let cipher_key = (0x000102030405060708090A0B0C0D0E0F as u128).to_be_bytes();
+        let plain_text = (0x00112233_44556677_8899AABB_CCDDEEFF as u128).to_be_bytes();
+        let cipher_key = (0x00010203_04050607_08090A0B_0C0D0E0F as u128).to_be_bytes();
 
         let actual_cipher_text = Aes128::with_key(cipher_key).encrypt_block(plain_text);
-        let expected_cipher_text = (0x69C4E0D86A7B0430D8CDB78070B4C55A as u128).to_be_bytes();
+        let expected_cipher_text = (0x69C4E0D8_6A7B0430_D8CDB780_70B4C55A as u128).to_be_bytes();
 
         assert_eq!(actual_cipher_text, expected_cipher_text);
     }
@@ -178,26 +170,15 @@ mod tests {
         assert_eq!(actual_cipher_text, expected_cipher_text);
     }
 
-    // #[test]
-    // fn aes_128_encrypt_one_full_block_3() {
-    //     let plain_text = (0x328831E0_435A3137_F6309807_A88DA234 as u128).to_be_bytes();
-    //     let cipher_key = (0x2B28AB09_7EAEF7CF_15D2154F_16A6883C as u128).to_be_bytes();
-
-    //     let actual_cipher_text = Aes128::with_key(cipher_key).encrypt_block(plain_text);
-    //     let expected_cipher_text = (0x3902DC19_25DC116A_8409850B_1DFB9732 as u128).to_be_bytes();
-
-    //     assert_eq!(actual_cipher_text, expected_cipher_text);
-    // }
-
     #[test]
     fn aes_128_expand_keys() {
         assert_eq!(Aes128::EXPANDED_KEY_WORD_COUNT, 44);
 
         let aes = Aes128::with_key([
-            0x2B, 0x28, 0xAB, 0x09,
-            0x7E, 0xAE, 0xF7, 0xCF,
-            0x15, 0xD2, 0x15, 0x4F,
-            0x16, 0xA6, 0x88, 0x3C,
+            0x2B, 0x7E, 0x15, 0x16,
+            0x28, 0xAE, 0xD2, 0xA6,
+            0xAB, 0xF7, 0x15, 0x88,
+            0x09, 0xCF, 0x4F, 0x3C,
         ]);
 
         let expected_words = [
