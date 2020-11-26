@@ -21,11 +21,12 @@ use rcon::rcon;
 
 macro_rules! define_aes_cipher {
     (
+        $mod:ident,
         $cipher:ident,
         $key_size:expr,
         $doc:expr
     ) => {
-        pub mod $cipher {
+        pub mod $mod {
             use super::*;
 
             type CipherKey = [u8; $key_size];
@@ -138,15 +139,15 @@ macro_rules! define_aes_cipher {
     }
 }
 
-define_aes_cipher!(Aes128, 16, "AES-128 block cipher");
-define_aes_cipher!(Aes192, 24, "AES-192 block cipher");
-define_aes_cipher!(Aes256, 32, "AES-256 block cipher");
+define_aes_cipher!(aes128, Aes128, 16, "AES-128 block cipher");
+define_aes_cipher!(aes192, Aes192, 24, "AES-192 block cipher");
+define_aes_cipher!(aes256, Aes256, 32, "AES-256 block cipher");
 
 #[cfg(test)]
 mod tests {
-    use super::Aes128::Aes128;
-    use super::Aes192::Aes192;
-    use super::Aes256::Aes256;
+    use super::aes128::Aes128;
+    use super::aes192::Aes192;
+    use super::aes256::Aes256;
 
     #[test]
     fn aes_128_encrypt_one_full_block() {
