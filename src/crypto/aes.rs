@@ -2,7 +2,8 @@ extern crate aes;
 
 use aes::aes128 as aes128_backend;
 
-use super::{openpgp_cfb::OpenPgpCfbAes128, symmetric_cipher::{SymmetricEncryption, SymmetricDecryption}};
+use super::openpgp_cfb::OpenPgpCfbAes128;
+use super::symmetric_cipher::{SymmetricEncryption, SymmetricDecryption};
 use super::symmetric_cipher::SymmetricKey;
 use super::symmetric_cipher::BlockCipher;
 use super::symmetric_cipher::{PlainTextOut, CipherTextOut};
