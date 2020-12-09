@@ -15,75 +15,39 @@ impl OpenPgpCfbAes128 {
 
     #[allow(non_snake_case)]
     pub fn encrypt(plaintext: &[u8], key: &[u8]) -> Result<CipherTextOut, Error> {
-        // NOTE: The following steps are taken from RFC 4880, where start index
-        //       is assumed to be 1 instead of 0.
-
-        // 1.  The feedback register (FR) is set to the IV, which is all zeros.
-        let IV: [u8; Self::BS] = [0; Self::BS];
-        let mut FR = IV;
-
-        // 2.  FR is encrypted to produce FRE (FR Encrypted).  This is the
-        //     encryption of an all-zero value.
-        let mut FRE = Self::encrypt_block(&FR, key)?;
-
-        // 3.  FRE is xored with the first BS octets of random data prefixed to
-        //     the plaintext to produce C[1] through C[BS], the first BS octets
-        //     of ciphertext.
         let prefix = b"\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF\xEE\xFF"; // TODO: Randomize
         // let prefix = b"\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF"; // TODO: Randomize
-        let unencrypted: &[u8] = &[prefix, plaintext].concat();
 
-        let mut C: Vec<u8> = Vec::with_capacity(unencrypted.len());
+        let mut C: Vec<u8> = Vec::with_capacity(prefix.len() + plaintext.len());
 
-        let range = 0..Self::BS;
+        let IV: [u8; Self::BS] = [0; Self::BS];
+        let mut FR = IV;
+        let mut FRE = Self::encrypt_block(&FR, key)?;
+        C.append(&mut xor_block(&FRE, &prefix[0..Self::BS]));
 
-        C.append(&mut xor_block(&FRE, &unencrypted[range.clone()]));
-
-        // 4.  FR is loaded with C[1] through C[BS].
-        FR = C[range].try_into()?;
-
-        // 5.  FR is encrypted to produce FRE, the encryption of the first BS
-        //     octets of ciphertext.
+        FR = C[0..Self::BS].try_into()?;
         FRE = Self::encrypt_block(&FR, key)?;
+        C.push(FRE[0] ^ prefix[Self::BS + 0]);
+        C.push(FRE[1] ^ prefix[Self::BS + 1]);
 
-        // 6.  The left two octets of FRE get xored with the next two octets of
-        //     data that were prefixed to the plaintext.  This produces C[BS+1]
-        //     and C[BS+2], the next two octets of ciphertext.
-        C.push(FRE[0] ^ unencrypted[Self::BS + 0]);
-        C.push(FRE[1] ^ unencrypted[Self::BS + 1]);
+        if plaintext.len() == 0 {
+            // NOTE: Could also return error. In that case, return early at fn start
+            // return Err("Failed reading plaintext data. No plaintext data provided?".into())
+            return Ok(C)
+        }
 
-        // 7.  (The resync step) FR is loaded with C[3] through C[BS+2].
-        let range = 2..C.len();
-        FR = C[range].try_into()?;
+        let mut plaintext_blocks = plaintext.chunks(Self::BS);
 
-        // 8.  FR is encrypted to produce FRE.
+        // The resync step
+        FR = C[2..prefix.len()].try_into()?;
         FRE = Self::encrypt_block(&FR, key)?;
+        C.append(&mut xor_block(&FRE, &plaintext_blocks.next().unwrap()));
 
-        // 9.  FRE is xored with the first BS octets of the given plaintext, now
-        //     that we have finished encrypting the BS+2 octets of prefixed
-        //     data.  This produces C[BS+3] through C[BS+(BS+2)], the next BS
-        //     octets of ciphertext.
-        let range = C.len()..(C.len() + Self::BS);
-        C.append(&mut xor_block(&FRE, &unencrypted[range]));
-
-        for _ in (C.len()..C.capacity()).step_by(Self::BS) {
-            // 10. FR is loaded with C[BS+3] to C[BS + (BS+2)]
+        while let Some(plaintext_block) = plaintext_blocks.next() {
             let range = (C.len() - Self::BS)..C.len();
             FR = C[range].try_into()?;
-
-            // 11. FR is encrypted to produce FRE.
             FRE = Self::encrypt_block(&FR, key)?;
-
-            // 12. FRE is xored with the next BS octets of plaintext, to produce
-            //     the next BS octets of ciphertext.  These are loaded into FR, and
-            //     the process is repeated until the plaintext is used up.
-            let mut range = C.len()..(C.len() + Self::BS);
-
-            if range.end > unencrypted.len() {
-                range.end = unencrypted.len();
-            }
-
-            C.append(&mut xor_block(&FRE, &unencrypted[range]));
+            C.append(&mut xor_block(&FRE, &plaintext_block));
         }
 
         Ok(C)
@@ -150,14 +114,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn encrypt_without_plaintext_data() {
+        let key = (0x112233445566778899AABBCCDDEEFF as u128).to_be_bytes();
+        let plaintext = b"";
+        assert_eq!(plaintext.len(), 0);
+
+        let ciphertext = OpenPgpCfbAes128::encrypt(plaintext, &key).expect("Failed to encrypt.");
+        let decrypted_text = OpenPgpCfbAes128::decrypt(&ciphertext, &key).expect("Failed to decrypt.");
+
+        assert_eq!(decrypted_text.to_vec(), plaintext.to_vec());
+    }
+
+    #[test]
     fn encrypt_three_blocks_exact() {
         let key = (0x112233445566778899AABBCCDDEEFF as u128).to_be_bytes();
         let plaintext = b"This secret message uses exactly three blocks...";
         assert_eq!(plaintext.len(), 3 * 16);
 
-        let ciphertext = OpenPgpCfbAes128::encrypt(plaintext, &key)
-            .expect("Failed to encrypt.")
-        ;
+        let ciphertext = OpenPgpCfbAes128::encrypt(plaintext, &key).expect("Failed to encrypt.");
 
         assert_eq!(ciphertext, vec![
             // Prefix
@@ -176,9 +150,7 @@ mod tests {
             0xA7, 0x2F, 0xF0, 0x79, 0x9B, 0xDE, 0x17, 0x14,
         ]);
 
-        let decrypted_text = OpenPgpCfbAes128::decrypt(&ciphertext, &key)
-            .expect("Failed to decrypt.")
-        ;
+        let decrypted_text = OpenPgpCfbAes128::decrypt(&ciphertext, &key).expect("Failed to decrypt.");
 
         assert_eq!(decrypted_text.to_vec(), plaintext.to_vec());
     }
@@ -189,9 +161,7 @@ mod tests {
         let plaintext = b"This secret message uses less than 3 blocks.";
         assert_ne!(plaintext.len(), 3 * 16);
 
-        let ciphertext = OpenPgpCfbAes128::encrypt(plaintext, &key)
-            .expect("Failed to encrypt.")
-        ;
+        let ciphertext = OpenPgpCfbAes128::encrypt(plaintext, &key).expect("Failed to encrypt.");
 
         assert_eq!(ciphertext, vec![
             // Prefix
@@ -210,9 +180,7 @@ mod tests {
             0xD7, 0x82, 0x58, 0xAB,
         ]);
 
-        let decrypted_text = OpenPgpCfbAes128::decrypt(&ciphertext, &key)
-            .expect("Failed to decrypt.")
-        ;
+        let decrypted_text = OpenPgpCfbAes128::decrypt(&ciphertext, &key).expect("Failed to decrypt.");
 
         assert_eq!(decrypted_text.to_vec(), plaintext.to_vec());
     }
