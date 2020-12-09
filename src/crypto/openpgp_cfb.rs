@@ -12,13 +12,13 @@ pub struct OpenPgpCfbAes128;
 
 impl OpenPgpCfbAes128 {
     const BS: usize = 16;
+    const PREFIX_LENGTH: usize = Self::BS + 2;
 
     #[allow(non_snake_case)]
     pub fn encrypt(plaintext: &[u8], key: &[u8]) -> Result<CipherTextOut, Error> {
-        let prefix = b"\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF\xEE\xFF"; // TODO: Randomize
-        // let prefix = b"\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF"; // TODO: Randomize
+        let mut C: Vec<u8> = Vec::with_capacity(Self::PREFIX_LENGTH + plaintext.len());
 
-        let mut C: Vec<u8> = Vec::with_capacity(prefix.len() + plaintext.len());
+        let prefix = generate_random_prefix(Self::PREFIX_LENGTH);
 
         let IV: [u8; Self::BS] = [0; Self::BS];
         let mut FR = IV;
@@ -108,6 +108,18 @@ fn xor_block(input1: &[u8], input2: &[u8]) -> Vec<u8> {
 //         .zip(input2)
 //         .for_each(|(left, right)| *right ^= left);
 // }
+
+fn generate_random_prefix(length: usize) -> Vec<u8> {
+    let prefix = random_data(length - 2);
+    [prefix.as_ref(), &prefix[prefix.len()-2..]].concat()
+}
+
+// WARN: Not random at the moment
+fn random_data(length: usize) -> Vec<u8> {
+    let data = b"\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF"; // TODO: Randomize
+
+    data.to_vec()
+}
 
 #[cfg(test)]
 mod tests {
