@@ -29,7 +29,7 @@ macro_rules! define_aes_cipher {
         pub mod $mod {
             use super::*;
 
-            type CipherKey = [u8; $key_size];
+            pub type CipherKey = [u8; $key_size];
             type ExpandedKeyWords = [[u8; 4]; $cipher::EXPANDED_KEY_WORD_COUNT];
 
             #[doc=$doc]
