@@ -99,12 +99,12 @@ macro_rules! define_aes_cipher {
                 }
 
                 /// Encrypt a single block
-                pub fn encrypt_block(self, plain_text: [u8; Self::BS]) -> [u8; Self::BS] {
+                pub fn encrypt_block(self, plaintext: [u8; Self::BS]) -> [u8; Self::BS] {
                     let mut state = State::new([
-                        [plain_text[0], plain_text[1], plain_text[2], plain_text[3]],
-                        [plain_text[4], plain_text[5], plain_text[6], plain_text[7]],
-                        [plain_text[8], plain_text[9], plain_text[10], plain_text[11]],
-                        [plain_text[12], plain_text[13], plain_text[14], plain_text[15]],
+                        [plaintext[0], plaintext[1], plaintext[2], plaintext[3]],
+                        [plaintext[4], plaintext[5], plaintext[6], plaintext[7]],
+                        [plaintext[8], plaintext[9], plaintext[10], plaintext[11]],
+                        [plaintext[12], plaintext[13], plaintext[14], plaintext[15]],
                     ]);
 
                     state.add_round_key(self.round_key(0));
@@ -136,12 +136,12 @@ macro_rules! define_aes_cipher {
                 }
 
                 /// Decrypt a single block
-                pub fn decrypt_block(self, plain_text: [u8; Self::BS]) -> [u8; Self::BS] {
+                pub fn decrypt_block(self, ciphertext: [u8; Self::BS]) -> [u8; Self::BS] {
                     let mut state = State::new([
-                        [plain_text[0], plain_text[1], plain_text[2], plain_text[3]],
-                        [plain_text[4], plain_text[5], plain_text[6], plain_text[7]],
-                        [plain_text[8], plain_text[9], plain_text[10], plain_text[11]],
-                        [plain_text[12], plain_text[13], plain_text[14], plain_text[15]],
+                        [ciphertext[0], ciphertext[1], ciphertext[2], ciphertext[3]],
+                        [ciphertext[4], ciphertext[5], ciphertext[6], ciphertext[7]],
+                        [ciphertext[8], ciphertext[9], ciphertext[10], ciphertext[11]],
+                        [ciphertext[12], ciphertext[13], ciphertext[14], ciphertext[15]],
                     ]);
 
                     state.add_round_key(self.round_key(Self::Nr));
@@ -176,35 +176,35 @@ mod tests {
 
     #[test]
     fn aes_128_encrypt_one_full_block() {
-        let plain_text = (0x00112233_44556677_8899AABB_CCDDEEFF as u128).to_be_bytes();
+        let plaintext = (0x00112233_44556677_8899AABB_CCDDEEFF as u128).to_be_bytes();
         let cipher_key = (0x00010203_04050607_08090A0B_0C0D0E0F as u128).to_be_bytes();
 
-        let actual_cipher_text = Aes128::with_key(cipher_key).encrypt_block(plain_text);
-        let expected_cipher_text = (0x69C4E0D8_6A7B0430_D8CDB780_70B4C55A as u128).to_be_bytes();
+        let actual_ciphertext = Aes128::with_key(cipher_key).encrypt_block(plaintext);
+        let expected_ciphertext = (0x69C4E0D8_6A7B0430_D8CDB780_70B4C55A as u128).to_be_bytes();
 
-        assert_eq!(actual_cipher_text, expected_cipher_text);
+        assert_eq!(actual_ciphertext, expected_ciphertext);
     }
 
     #[test]
     fn aes_128_encrypt_one_full_block_2() {
-        let plain_text = (0x3243F6A8_885A308D_313198A2_E0370734 as u128).to_be_bytes();
+        let plaintext = (0x3243F6A8_885A308D_313198A2_E0370734 as u128).to_be_bytes();
         let cipher_key = (0x2B7E1516_28AED2A6_ABF71588_09CF4F3C as u128).to_be_bytes();
 
-        let actual_cipher_text = Aes128::with_key(cipher_key).encrypt_block(plain_text);
-        let expected_cipher_text = (0x3925841D_02DC09FB_DC118597_196A0B32 as u128).to_be_bytes();
+        let actual_ciphertext = Aes128::with_key(cipher_key).encrypt_block(plaintext);
+        let expected_ciphertext = (0x3925841D_02DC09FB_DC118597_196A0B32 as u128).to_be_bytes();
 
-        assert_eq!(actual_cipher_text, expected_cipher_text);
+        assert_eq!(actual_ciphertext, expected_ciphertext);
     }
 
     #[test]
     fn aes_128_decrypt_one_full_block() {
-        let cipher_text = (0x69C4E0D8_6A7B0430_D8CDB780_70B4C55A as u128).to_be_bytes();
+        let ciphertext = (0x69C4E0D8_6A7B0430_D8CDB780_70B4C55A as u128).to_be_bytes();
         let cipher_key = (0x00010203_04050607_08090A0B_0C0D0E0F as u128).to_be_bytes();
 
-        let actual_plain_text = Aes128::with_key(cipher_key).decrypt_block(cipher_text);
-        let expected_plain_text = (0x00112233_44556677_8899AABB_CCDDEEFF as u128).to_be_bytes();
+        let actual_plaintext = Aes128::with_key(cipher_key).decrypt_block(ciphertext);
+        let expected_plaintext = (0x00112233_44556677_8899AABB_CCDDEEFF as u128).to_be_bytes();
 
-        assert_eq!(actual_plain_text, expected_plain_text);
+        assert_eq!(actual_plaintext, expected_plaintext);
     }
 
     #[test]
