@@ -29,14 +29,12 @@ impl From<[u8; block::SIZE]> for State {
     fn from(array_elements: [u8; block::SIZE]) -> Self {
         let mut state = State::default();
 
-        let mut i: usize = 0;
-
-        for r in 0..block::ROW_COUNT {
-            for c in 0..block::COLUMN_COUNT {
-                state.elements[r][c] = array_elements[i];
-                i += 1;
-            }
-        }
+        state.elements
+            .iter_mut()
+            .flat_map(|row| row.iter_mut())
+            .zip(array_elements.iter())
+            .for_each(|(s, v)| *s = *v)
+        ;
 
         state
     }
@@ -46,14 +44,12 @@ impl From<State> for [u8; block::SIZE] {
     fn from(state: State) -> Self {
         let mut elements = [0; block::SIZE];
 
-        let mut i: usize = 0;
-
-        for r in 0..block::ROW_COUNT {
-            for c in 0..block::COLUMN_COUNT {
-                elements[i] = state.elements[r][c];
-                i += 1;
-            }
-        }
+        state.elements
+            .iter()
+            .flat_map(|row| row.iter())
+            .zip(&mut elements)
+            .for_each(|(v, s)| *s = *v)
+        ;
 
         elements
     }
