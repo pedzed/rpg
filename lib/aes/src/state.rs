@@ -25,6 +25,23 @@ impl State {
     }
 }
 
+impl From<[u8; block::SIZE]> for State {
+    fn from(array_elements: [u8; block::SIZE]) -> Self {
+        let mut state = State::default();
+
+        let mut i: usize = 0;
+
+        for r in 0..block::ROW_COUNT {
+            for c in 0..block::COLUMN_COUNT {
+                state.elements[r][c] = array_elements[i];
+                i += 1;
+            }
+        }
+
+        state
+    }
+}
+
 impl From<State> for [u8; block::SIZE] {
     fn from(state: State) -> Self {
         let mut elements = [0; block::SIZE];
@@ -39,28 +56,6 @@ impl From<State> for [u8; block::SIZE] {
         }
 
         elements
-
-        // [
-        //     state.elements[0][0],
-        //     state.elements[0][1],
-        //     state.elements[0][2],
-        //     state.elements[0][3],
-
-        //     state.elements[1][0],
-        //     state.elements[1][1],
-        //     state.elements[1][2],
-        //     state.elements[1][3],
-
-        //     state.elements[2][0],
-        //     state.elements[2][1],
-        //     state.elements[2][2],
-        //     state.elements[2][3],
-
-        //     state.elements[3][0],
-        //     state.elements[3][1],
-        //     state.elements[3][2],
-        //     state.elements[3][3],
-        // ]
     }
 }
 
@@ -84,6 +79,25 @@ mod tests {
             0x44, 0x55, 0x66, 0x77,
             0x88, 0x99, 0xAA, 0xBB,
             0xCC, 0xDD, 0xEE, 0xFF,
+        ]);
+    }
+
+    #[test]
+    fn from_1d_array() {
+        let elements = [
+            0x00, 0x11, 0x22, 0x33,
+            0x44, 0x55, 0x66, 0x77,
+            0x88, 0x99, 0xAA, 0xBB,
+            0xCC, 0xDD, 0xEE, 0xFF,
+        ];
+
+        let state: State = elements.into();
+
+        assert_eq!(state.elements, [
+            [0x00, 0x11, 0x22, 0x33],
+            [0x44, 0x55, 0x66, 0x77],
+            [0x88, 0x99, 0xAA, 0xBB],
+            [0xCC, 0xDD, 0xEE, 0xFF],
         ]);
     }
 }

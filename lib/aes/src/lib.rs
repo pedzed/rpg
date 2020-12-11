@@ -100,12 +100,7 @@ macro_rules! define_aes_cipher {
 
                 /// Encrypt a single block
                 pub fn encrypt_block(self, plaintext: [u8; Self::BS]) -> [u8; Self::BS] {
-                    let mut state = State::new([
-                        [plaintext[0], plaintext[1], plaintext[2], plaintext[3]],
-                        [plaintext[4], plaintext[5], plaintext[6], plaintext[7]],
-                        [plaintext[8], plaintext[9], plaintext[10], plaintext[11]],
-                        [plaintext[12], plaintext[13], plaintext[14], plaintext[15]],
-                    ]);
+                    let mut state: State = plaintext.into();
 
                     state.add_round_key(self.round_key(0));
 
@@ -137,12 +132,7 @@ macro_rules! define_aes_cipher {
 
                 /// Decrypt a single block
                 pub fn decrypt_block(self, ciphertext: [u8; Self::BS]) -> [u8; Self::BS] {
-                    let mut state = State::new([
-                        [ciphertext[0], ciphertext[1], ciphertext[2], ciphertext[3]],
-                        [ciphertext[4], ciphertext[5], ciphertext[6], ciphertext[7]],
-                        [ciphertext[8], ciphertext[9], ciphertext[10], ciphertext[11]],
-                        [ciphertext[12], ciphertext[13], ciphertext[14], ciphertext[15]],
-                    ]);
+                    let mut state: State = ciphertext.into();
 
                     state.add_round_key(self.round_key(Self::Nr));
 
