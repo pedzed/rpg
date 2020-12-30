@@ -1,5 +1,6 @@
 use std::convert::TryInto;
 
+use rand::Rng;
 use aes::aes128 as aes128_backend;
 
 use super::symmetric_cipher::CipherTextOut;
@@ -111,15 +112,12 @@ fn xor_block(input1: &[u8], input2: &[u8]) -> Vec<u8> {
 // }
 
 fn generate_random_prefix(length: usize) -> Vec<u8> {
-    let prefix = random_data(length - 2);
-    [prefix.as_ref(), &prefix[prefix.len()-2..]].concat()
-}
+    let mut rng = rand::thread_rng();
 
-// WARN: Not random at the moment
-fn random_data(length: usize) -> Vec<u8> {
-    let data = b"\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF"; // TODO: Randomize
+    let prefix: Vec<u8> = (0..(length-2)).map(|_| rng.gen()).collect();
+    let last_two_bytes = &prefix[prefix.len()-2..];
 
-    data.to_vec()
+    [prefix.as_ref(), last_two_bytes].concat()
 }
 
 #[cfg(test)]
@@ -145,24 +143,6 @@ mod tests {
         assert_eq!(plaintext.len(), 3 * 16);
 
         let ciphertext = OpenPgpCfbAes128::encrypt(plaintext, &key).expect("Failed to encrypt.");
-
-        assert_eq!(ciphertext, vec![
-            // Prefix
-            0xFD, 0xF5, 0xD9, 0x9D, 0x0E, 0x5C, 0x86, 0x57,
-            0x67, 0x6E, 0x88, 0x2D, 0x53, 0x5E, 0x6D, 0xD4,
-            0xFE, 0xE4,
-
-            // Encrypted plaintext
-            0xA9, 0x4E, 0x69, 0x05, 0x69, 0x68, 0x17, 0x06,
-            0xCD, 0xFE, 0x30, 0x0B, 0xAC, 0xDF, 0xC2, 0x99,
-
-            0xC5, 0x98, 0xDC, 0x37, 0x6F, 0x88, 0x94, 0x2A,
-            0xA4, 0xFC, 0xC5, 0xC5, 0xA8, 0x15, 0x6E, 0x3F,
-
-            0xA1, 0xA6, 0x30, 0x51, 0x8B, 0x4B, 0xE8, 0x4D,
-            0xA7, 0x2F, 0xF0, 0x79, 0x9B, 0xDE, 0x17, 0x14,
-        ]);
-
         let decrypted_text = OpenPgpCfbAes128::decrypt(&ciphertext, &key).expect("Failed to decrypt.");
 
         assert_eq!(decrypted_text.to_vec(), plaintext.to_vec());
@@ -175,24 +155,6 @@ mod tests {
         assert_ne!(plaintext.len(), 3 * 16);
 
         let ciphertext = OpenPgpCfbAes128::encrypt(plaintext, &key).expect("Failed to encrypt.");
-
-        assert_eq!(ciphertext, vec![
-            // Prefix
-            0xFD, 0xF5, 0xD9, 0x9D, 0x0E, 0x5C, 0x86, 0x57,
-            0x67, 0x6E, 0x88, 0x2D, 0x53, 0x5E, 0x6D, 0xD4,
-            0xFE, 0xE4,
-
-            // Encrypted plaintext
-            0xA9, 0x4E, 0x69, 0x05, 0x69, 0x68, 0x17, 0x06,
-            0xCD, 0xFE, 0x30, 0x0B, 0xAC, 0xDF, 0xC2, 0x99,
-
-            0xC5, 0x98, 0xDC, 0x37, 0x6F, 0x88, 0x94, 0x2A,
-            0xA4, 0xF5, 0xD8, 0xD7, 0xB8, 0x41, 0x76, 0x2E,
-
-            0x1A, 0x96, 0x3F, 0xA9, 0xB1, 0x80, 0xEE, 0x73,
-            0xD7, 0x82, 0x58, 0xAB,
-        ]);
-
         let decrypted_text = OpenPgpCfbAes128::decrypt(&ciphertext, &key).expect("Failed to decrypt.");
 
         assert_eq!(decrypted_text.to_vec(), plaintext.to_vec());
