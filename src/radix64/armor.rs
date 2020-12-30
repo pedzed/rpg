@@ -7,9 +7,9 @@
 // vBSFjNSiVHsuAA==
 // =njUN
 // -----END PGP MESSAGE-----
-mod armor_checksums;
-mod armor_data_types;
-mod armor_data_headers;
+pub mod armor_checksums;
+pub mod armor_data_types;
+pub mod armor_data_headers;
 
 pub mod armor_reader;
 pub mod armor_writer;

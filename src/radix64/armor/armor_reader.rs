@@ -20,11 +20,11 @@ type ArmorData = Vec<u8>;
 // https://tools.ietf.org/html/rfc4880#section-6.2
 #[derive(Debug)]
 pub struct ArmorReader {
-    data_type: Result<ArmorDataType, ArmorDataTypeError>,
-    data_headers: ArmorDataHeaderMap,
-    encoded_data: Result<ArmorData, ArmorReaderError>,
-    decoded_data: Result<ArmorData, DecoderError>,
-    checksum: Result<ArmorChecksum, ArmorReaderError>,
+    pub data_type: Result<ArmorDataType, ArmorDataTypeError>,
+    pub data_headers: ArmorDataHeaderMap,
+    pub encoded_data: Result<ArmorData, ArmorReaderError>,
+    pub decoded_data: Result<ArmorData, DecoderError>,
+    pub checksum: Result<ArmorChecksum, ArmorReaderError>,
 }
 
 impl ArmorReader {

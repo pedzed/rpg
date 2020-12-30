@@ -4,7 +4,8 @@ use aes::aes128 as aes128_backend;
 
 use super::symmetric_cipher::CipherTextOut;
 use super::symmetric_cipher::PlainTextOut;
-use super::symmetric_cipher::Error;
+
+use crate::Error;
 
 type Block = [u8; OpenPgpCfbAes128::BS];
 

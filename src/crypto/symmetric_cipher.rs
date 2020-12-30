@@ -1,8 +1,9 @@
+use crate::Error;
+
 use super::mode_of_operations::Mode;
 
 pub type PlainTextOut = Vec<u8>;
 pub type CipherTextOut = Vec<u8>;
-pub type Error = Box<dyn std::error::Error>;
 
 pub trait SymmetricKey {
     type CipherKey;

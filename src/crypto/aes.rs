@@ -7,8 +7,9 @@ use super::symmetric_cipher::{SymmetricEncryption, SymmetricDecryption};
 use super::symmetric_cipher::SymmetricKey;
 use super::symmetric_cipher::BlockCipher;
 use super::symmetric_cipher::{PlainTextOut, CipherTextOut};
-use super::symmetric_cipher::Error;
 use super::mode_of_operations::Mode;
+
+use crate::Error;
 
 pub struct Aes128 {
     mode: Option<Mode>,
