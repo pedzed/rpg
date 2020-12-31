@@ -29,10 +29,9 @@ fn main() {
                 .expect(&format!("Expected input file. None provided."))
             ;
 
-            let with_armor = args.contains(&String::from("--armor"));
-
             if arg == "--encrypt" {
                 let output_file = format!("{}.rpg", input_file);
+                let with_armor = args.contains(&String::from("--armor"));
 
                 EncryptionCommand {
                     algo,
@@ -43,12 +42,14 @@ fn main() {
                 }.run();
             } else {
                 let output_file = format!("{}.decrypted", input_file);
+                let ignore_crc_error = args.contains(&String::from("--ignore-crc-error"));
 
                 DecryptionCommand {
                     algo,
                     input_file: String::from(input_file),
                     output_file,
                     cipher_key: (0x112233445566778899AABBCCDDEEFF as u128).to_be_bytes().to_vec(),
+                    ignore_crc_error,
                 }.run();
             }
         } else {
@@ -81,6 +82,10 @@ fn get_help_text() -> String {
                             transferring data in binary-safe format.
 
                             To be used with the --encrypt command.
+
+    --ignore-crc-error      Do not fail on CRC mismatch.
+
+                            To be used with the --decrypt command.
 \
         ",
         app_bin=APP_NAME,

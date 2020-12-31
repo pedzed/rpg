@@ -55,6 +55,14 @@ mod tests {
     }
 
     #[test]
+    fn get_for_binary_data() {
+        let data = std::fs::read("tests/resources/gnupg-icon.png").unwrap();
+        let checksum = ArmorChecksum::from_payload(&data);
+
+        assert_eq!(checksum.get(), "=/u+x");
+    }
+
+    #[test]
     fn verify_valid_for_hello_world() {
         let checksum = ArmorChecksum::new("=uizE");
 
@@ -66,5 +74,13 @@ mod tests {
         let checksum = ArmorChecksum::new("=uizE");
 
         assert!(!checksum.verify(b"World, hello."));
+    }
+
+    #[test]
+    fn verify_valid_for_binary_data() {
+        let checksum = ArmorChecksum::new("=/u+x");
+
+        let data = std::fs::read("tests/resources/gnupg-icon.png").unwrap();
+        assert!(checksum.verify(&data));
     }
 }

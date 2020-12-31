@@ -99,6 +99,7 @@ pub struct DecryptionCommand {
     pub input_file: String,
     pub output_file: String,
     pub cipher_key: Vec<u8>,
+    pub ignore_crc_error: bool,
 }
 
 impl DecryptionCommand {
@@ -115,17 +116,44 @@ impl DecryptionCommand {
             .expect(&format!("Could not read `{}`.", &self.input_file))
         ;
 
-        let ciphertext = match ArmorReader::read_file(&self.input_file) {
-            Ok(armor) => match armor.decoded_data {
-                Ok(decoded_data) => decoded_data,
-                Err(_) => input,
+        let armor_reader = ArmorReader::read_file(&self.input_file);
+
+        let ciphertext = match armor_reader {
+            Ok(ref armor) => {
+                match &armor.decoded_data {
+                    Ok(decoded_data) => decoded_data,
+                    Err(_) => &input,
+                }
             },
-            Err(_) => input,
+            Err(_) => &input,
         };
 
         let plaintext = OpenPgpCfbAes128::decrypt(&ciphertext, &self.cipher_key)
             .expect("Failed to encrypt.")
         ;
+
+        match armor_reader {
+            Ok(armor) => {
+                let checksum = armor.checksum.expect("Could not read checksum.");
+
+                match checksum.verify(&plaintext) {
+                    true => {
+                        println!("Checksum verification passed.");
+                    },
+                    false => {
+                        match self.ignore_crc_error {
+                            true => {
+                                println!("Checksum verification of `{}` failed. Ignoring...", checksum.get());
+                            },
+                            false => {
+                                panic!("Checksum verification of `{}` failed. Aborting.", checksum.get());
+                            },
+                        }
+                    },
+                }
+            },
+            Err(_) => {},
+        }
 
         fs::write(&self.output_file, &plaintext)
             .expect(&format!("Could not write to `{}`.", &self.output_file))
