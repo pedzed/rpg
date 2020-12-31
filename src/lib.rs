@@ -133,20 +133,20 @@ impl DecryptionCommand {
         ;
 
         match armor_reader {
-            Ok(armor) => {
-                let checksum = armor.checksum.expect("Could not read checksum.");
+            Ok(ref armor) => {
+                let checksum = armor.checksum.as_ref().expect("Could not read checksum.");
 
-                match checksum.verify(&plaintext) {
+                match checksum.verify(&ciphertext) {
                     true => {
-                        println!("Checksum verification passed.");
+                        println!("✓ Checksum verification passed.");
                     },
                     false => {
                         match self.ignore_crc_error {
                             true => {
-                                println!("Checksum verification of `{}` failed. Ignoring...", checksum.get());
+                                println!("✗ Checksum verification of `{}` failed. Ignoring...", checksum.get());
                             },
                             false => {
-                                panic!("Checksum verification of `{}` failed. Aborting.", checksum.get());
+                                panic!("✗ Checksum verification of `{}` failed. Aborting.", checksum.get());
                             },
                         }
                     },
