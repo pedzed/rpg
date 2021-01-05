@@ -1,4 +1,3 @@
-use super::block;
 use super::State;
 use super::RoundKey;
 
@@ -8,11 +7,25 @@ pub trait AddRoundKey {
 
 impl AddRoundKey for State {
     fn add_round_key(&mut self, round_key: RoundKey) {
-        for c in 0..block::COLUMN_COUNT {
-            for r in 0..block::ROW_COUNT {
-                self.elements[c][r] ^= round_key[c][r];
-            }
-        }
+        self.elements[0][0] ^= round_key[0][0];
+        self.elements[0][1] ^= round_key[0][1];
+        self.elements[0][2] ^= round_key[0][2];
+        self.elements[0][3] ^= round_key[0][3];
+
+        self.elements[1][0] ^= round_key[1][0];
+        self.elements[1][1] ^= round_key[1][1];
+        self.elements[1][2] ^= round_key[1][2];
+        self.elements[1][3] ^= round_key[1][3];
+
+        self.elements[2][0] ^= round_key[2][0];
+        self.elements[2][1] ^= round_key[2][1];
+        self.elements[2][2] ^= round_key[2][2];
+        self.elements[2][3] ^= round_key[2][3];
+
+        self.elements[3][0] ^= round_key[3][0];
+        self.elements[3][1] ^= round_key[3][1];
+        self.elements[3][2] ^= round_key[3][2];
+        self.elements[3][3] ^= round_key[3][3];
     }
 }
 
