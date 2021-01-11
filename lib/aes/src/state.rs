@@ -12,7 +12,7 @@ pub use super::state::sub_bytes::SubBytes;
 pub use super::state::shift_rows::ShiftRows;
 pub use super::state::mix_columns::MixColumns;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct State {
     pub elements: Block,
 }
