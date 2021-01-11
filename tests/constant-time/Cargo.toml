@@ -1,18 +1,15 @@
 [package]
-name = "rpg"
+name = "constant-time"
 version = "0.1.0"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rand = "0.8.0"
+rand = "0.8.1"
+aes-soft = "0.6.4"
+tsc-time = "0.1.0"
+plotters = "0.3.0"
 
 [dependencies.aes]
-path = "lib/aes"
-
-[workspace]
-members = [
-    "lib/aes",
-    "tests/constant-time",
-]
+path = "../../lib/aes"
