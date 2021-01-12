@@ -160,39 +160,41 @@ define_aes_cipher!(aes256, Aes256, 32, "AES-256 block cipher");
 
 #[cfg(test)]
 mod tests {
+    use hex_literal::hex;
+
     use super::aes128::Aes128;
     use super::aes192::Aes192;
     use super::aes256::Aes256;
 
     #[test]
     fn aes_128_encrypt_one_full_block() {
-        let plaintext = (0x00112233_44556677_8899AABB_CCDDEEFF as u128).to_be_bytes();
-        let cipher_key: [u8; 16] = (0x00010203_04050607_08090A0B_0C0D0E0F as u128).to_be_bytes();
+        let plaintext = hex!("00112233 44556677 8899AABB CCDDEEFF");
+        let cipher_key: [u8; 16] = hex!("00010203 04050607 08090A0B 0C0D0E0F");
 
         let actual_ciphertext = Aes128::with_key(cipher_key).encrypt_block(plaintext);
-        let expected_ciphertext = (0x69C4E0D8_6A7B0430_D8CDB780_70B4C55A as u128).to_be_bytes();
+        let expected_ciphertext = hex!("69C4E0D8 6A7B0430 D8CDB780 70B4C55A");
 
         assert_eq!(actual_ciphertext, expected_ciphertext);
     }
 
     #[test]
     fn aes_128_encrypt_one_full_block_2() {
-        let plaintext = (0x3243F6A8_885A308D_313198A2_E0370734 as u128).to_be_bytes();
-        let cipher_key = (0x2B7E1516_28AED2A6_ABF71588_09CF4F3C as u128).to_be_bytes();
+        let plaintext = hex!("3243F6A8 885A308D 313198A2 E0370734");
+        let cipher_key = hex!("2B7E1516 28AED2A6 ABF71588 09CF4F3C");
 
         let actual_ciphertext = Aes128::with_key(cipher_key).encrypt_block(plaintext);
-        let expected_ciphertext = (0x3925841D_02DC09FB_DC118597_196A0B32 as u128).to_be_bytes();
+        let expected_ciphertext = hex!("3925841D 02DC09FB DC118597 196A0B32");
 
         assert_eq!(actual_ciphertext, expected_ciphertext);
     }
 
     #[test]
     fn aes_128_decrypt_one_full_block() {
-        let ciphertext = (0x69C4E0D8_6A7B0430_D8CDB780_70B4C55A as u128).to_be_bytes();
-        let cipher_key = (0x00010203_04050607_08090A0B_0C0D0E0F as u128).to_be_bytes();
+        let ciphertext = hex!("69C4E0D8 6A7B0430 D8CDB780 70B4C55A");
+        let cipher_key = hex!("00010203 04050607 08090A0B 0C0D0E0F");
 
         let actual_plaintext = Aes128::with_key(cipher_key).decrypt_block(ciphertext);
-        let expected_plaintext = (0x00112233_44556677_8899AABB_CCDDEEFF as u128).to_be_bytes();
+        let expected_plaintext = hex!("00112233 44556677 8899AABB CCDDEEFF");
 
         assert_eq!(actual_plaintext, expected_plaintext);
     }
@@ -201,30 +203,25 @@ mod tests {
     fn aes_128_expand_keys() {
         assert_eq!(Aes128::EXPANDED_KEY_WORD_COUNT, 44);
 
-        let aes = Aes128::with_key([
-            0x2B, 0x7E, 0x15, 0x16,
-            0x28, 0xAE, 0xD2, 0xA6,
-            0xAB, 0xF7, 0x15, 0x88,
-            0x09, 0xCF, 0x4F, 0x3C,
-        ]);
+        let aes = Aes128::with_key(hex!("2B7E1516 28AED2A6 ABF71588 09CF4F3C"));
 
         let expected_words = [
-            0x2B7E1516, 0x28AED2A6, 0xABF71588, 0x09CF4F3C, // Round Key 0
-            0xA0FAFE17, 0x88542CB1, 0x23A33939, 0x2A6C7605, // Round Key 1
-            0xF2C295F2, 0x7A96B943, 0x5935807A, 0x7359F67F, // Round Key 2
-            0x3D80477D, 0x4716FE3E, 0x1E237E44, 0x6D7A883B, // Round Key 3
-            0xEF44A541, 0xA8525B7F, 0xB671253B, 0xDB0BAD00, // Round Key 4
-            0xD4D1C6F8, 0x7C839D87, 0xCAF2B8BC, 0x11F915BC, // Round Key 5
-            0x6D88A37A, 0x110B3EFD, 0xDBF98641, 0xCA0093FD, // Round Key 6
-            0x4E54F70E, 0x5F5FC9F3, 0x84A64FB2, 0x4EA6DC4F, // Round Key 7
-            0xEAD27321, 0xB58DBAD2, 0x312BF560, 0x7F8D292F, // Round Key 8
-            0xAC7766F3, 0x19FADC21, 0x28D12941, 0x575C006E, // Round Key 9
-            0xD014F9A8, 0xC9EE2589, 0xE13F0CC8, 0xB6630CA6, // Round Key 10
+            hex!("2B7E1516"), hex!("28AED2A6"), hex!("ABF71588"), hex!("09CF4F3C"), // Round Key 0
+            hex!("A0FAFE17"), hex!("88542CB1"), hex!("23A33939"), hex!("2A6C7605"), // Round Key 1
+            hex!("F2C295F2"), hex!("7A96B943"), hex!("5935807A"), hex!("7359F67F"), // Round Key 2
+            hex!("3D80477D"), hex!("4716FE3E"), hex!("1E237E44"), hex!("6D7A883B"), // Round Key 3
+            hex!("EF44A541"), hex!("A8525B7F"), hex!("B671253B"), hex!("DB0BAD00"), // Round Key 4
+            hex!("D4D1C6F8"), hex!("7C839D87"), hex!("CAF2B8BC"), hex!("11F915BC"), // Round Key 5
+            hex!("6D88A37A"), hex!("110B3EFD"), hex!("DBF98641"), hex!("CA0093FD"), // Round Key 6
+            hex!("4E54F70E"), hex!("5F5FC9F3"), hex!("84A64FB2"), hex!("4EA6DC4F"), // Round Key 7
+            hex!("EAD27321"), hex!("B58DBAD2"), hex!("312BF560"), hex!("7F8D292F"), // Round Key 8
+            hex!("AC7766F3"), hex!("19FADC21"), hex!("28D12941"), hex!("575C006E"), // Round Key 9
+            hex!("D014F9A8"), hex!("C9EE2589"), hex!("E13F0CC8"), hex!("B6630CA6"), // Round Key 10
         ];
 
         for (i, _) in expected_words.iter().enumerate() {
             assert_eq!(
-                u32::from_be_bytes(aes.expanded_key_words[i]),
+                aes.expanded_key_words[i],
                 expected_words[i],
                 "Word {}", i
             );
@@ -235,34 +232,27 @@ mod tests {
     fn aes_192_expand_keys() {
         assert_eq!(Aes192::EXPANDED_KEY_WORD_COUNT, 52);
 
-        let aes = Aes192::with_key([
-            0x8E, 0x73, 0xB0, 0xF7,
-            0xDA, 0x0E, 0x64, 0x52,
-            0xC8, 0x10, 0xF3, 0x2B,
-            0x80, 0x90, 0x79, 0xE5,
-            0x62, 0xF8, 0xEA, 0xD2,
-            0x52, 0x2C, 0x6B, 0x7B,
-        ]);
+        let aes = Aes192::with_key(hex!("8E73B0F7 DA0E6452 C810F32B 809079E5 62F8EAD2 522C6B7B"));
 
         let expected_words = [
-            0x8E73B0F7, 0xDA0E6452, 0xC810F32B, 0x809079E5, // Round Key 0
-            0x62F8EAD2, 0x522C6B7B, 0xFE0C91F7, 0x2402F5A5, // Round Key 1
-            0xEC12068E, 0x6C827F6B, 0x0E7A95B9, 0x5C56FEC2, // Round Key 2
-            0x4DB7B4BD, 0x69B54118, 0x85A74796, 0xE92538FD, // Round Key 3
-            0xE75FAD44, 0xBB095386, 0x485AF057, 0x21EFB14F, // Round Key 4
-            0xA448F6D9, 0x4D6DCE24, 0xAA326360, 0x113B30E6, // Round Key 5
-            0xA25E7ED5, 0x83B1CF9A, 0x27F93943, 0x6A94F767, // Round Key 6
-            0xC0A69407, 0xD19DA4E1, 0xEC1786EB, 0x6FA64971, // Round Key 7
-            0x485F7032, 0x22CB8755, 0xE26D1352, 0x33F0B7B3, // Round Key 8
-            0x40BEEB28, 0x2F18A259, 0x6747D26B, 0x458C553E, // Round Key 9
-            0xA7E1466C, 0x9411F1DF, 0x821F750A, 0xAD07D753, // Round Key 10
-            0xCA400538, 0x8FCC5006, 0x282D166A, 0xBC3CE7B5, // Round Key 11
-            0xE98BA06F, 0x448C773C, 0x8ECC7204, 0x01002202, // Round Key 12
+            hex!("8E73B0F7"), hex!("DA0E6452"), hex!("C810F32B"), hex!("809079E5"), // Round Key 0
+            hex!("62F8EAD2"), hex!("522C6B7B"), hex!("FE0C91F7"), hex!("2402F5A5"), // Round Key 1
+            hex!("EC12068E"), hex!("6C827F6B"), hex!("0E7A95B9"), hex!("5C56FEC2"), // Round Key 2
+            hex!("4DB7B4BD"), hex!("69B54118"), hex!("85A74796"), hex!("E92538FD"), // Round Key 3
+            hex!("E75FAD44"), hex!("BB095386"), hex!("485AF057"), hex!("21EFB14F"), // Round Key 4
+            hex!("A448F6D9"), hex!("4D6DCE24"), hex!("AA326360"), hex!("113B30E6"), // Round Key 5
+            hex!("A25E7ED5"), hex!("83B1CF9A"), hex!("27F93943"), hex!("6A94F767"), // Round Key 6
+            hex!("C0A69407"), hex!("D19DA4E1"), hex!("EC1786EB"), hex!("6FA64971"), // Round Key 7
+            hex!("485F7032"), hex!("22CB8755"), hex!("E26D1352"), hex!("33F0B7B3"), // Round Key 8
+            hex!("40BEEB28"), hex!("2F18A259"), hex!("6747D26B"), hex!("458C553E"), // Round Key 9
+            hex!("A7E1466C"), hex!("9411F1DF"), hex!("821F750A"), hex!("AD07D753"), // Round Key 10
+            hex!("CA400538"), hex!("8FCC5006"), hex!("282D166A"), hex!("BC3CE7B5"), // Round Key 11
+            hex!("E98BA06F"), hex!("448C773C"), hex!("8ECC7204"), hex!("01002202"), // Round Key 12
         ];
 
         for (i, _) in expected_words.iter().enumerate() {
             assert_eq!(
-                u32::from_be_bytes(aes.expanded_key_words[i]),
+                aes.expanded_key_words[i],
                 expected_words[i],
                 "Word {}", i
             );
@@ -271,22 +261,22 @@ mod tests {
 
     #[test]
     fn aes_192_encrypt_one_full_block() {
-        let plaintext = (0x00112233_44556677_8899AABB_CCDDEEFF as u128).to_be_bytes();
-        let cipher_key = *b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17";
+        let plaintext = hex!("00112233 44556677 8899AABB CCDDEEFF");
+        let cipher_key = hex!("00010203 04050607 08090A0B 0C0D0E0F 10111213 14151617");
 
         let actual_ciphertext = Aes192::with_key(cipher_key).encrypt_block(plaintext);
-        let expected_ciphertext = (0xDDA97CA4_864CDFE0_6EAF70A0_EC0D7191 as u128).to_be_bytes();
+        let expected_ciphertext = hex!("DDA97CA4 864CDFE0 6EAF70A0 EC0D7191");
 
         assert_eq!(actual_ciphertext, expected_ciphertext);
     }
 
     #[test]
     fn aes_192_decrypt_one_full_block() {
-        let ciphertext = (0xDDA97CA4_864CDFE0_6EAF70A0_EC0D7191 as u128).to_be_bytes();
-        let cipher_key = *b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17";
+        let ciphertext = hex!("DDA97CA4 864CDFE0 6EAF70A0 EC0D7191");
+        let cipher_key = hex!("00010203 04050607 08090A0B 0C0D0E0F 10111213 14151617");
 
         let actual_plaintext = Aes192::with_key(cipher_key).decrypt_block(ciphertext);
-        let expected_plaintext = (0x00112233_44556677_8899AABB_CCDDEEFF as u128).to_be_bytes();
+        let expected_plaintext = hex!("00112233 44556677 8899AABB CCDDEEFF");
 
         assert_eq!(actual_plaintext, expected_plaintext);
     }
@@ -295,38 +285,29 @@ mod tests {
     fn aes_256_expand_keys() {
         assert_eq!(Aes256::EXPANDED_KEY_WORD_COUNT, 60);
 
-        let aes = Aes256::with_key([
-            0x60, 0x3D, 0xEB, 0x10,
-            0x15, 0xCA, 0x71, 0xBE,
-            0x2B, 0x73, 0xAE, 0xF0,
-            0x85, 0x7D, 0x77, 0x81,
-            0x1F, 0x35, 0x2C, 0x07,
-            0x3B, 0x61, 0x08, 0xD7,
-            0x2D, 0x98, 0x10, 0xA3,
-            0x09, 0x14, 0xDF, 0xF4,
-        ]);
+        let aes = Aes256::with_key(hex!("603DEB10 15CA71BE 2B73AEF0 857D7781 1F352C07 3B6108D7 2D9810A3 0914DFF4"));
 
         let expected_words = [
-            0x603DEB10, 0x15CA71BE, 0x2B73AEF0, 0x857D7781, // Round Key 0
-            0x1F352C07, 0x3B6108D7, 0x2D9810A3, 0x0914DFF4, // Round Key 1
-            0x9BA35411, 0x8E6925AF, 0xA51A8B5F, 0x2067FCDE, // Round Key 2
-            0xA8B09C1A, 0x93D194CD, 0xBE49846E, 0xB75D5B9A, // Round Key 3
-            0xD59AECB8, 0x5BF3C917, 0xFEE94248, 0xDE8EBE96, // Round Key 4
-            0xB5A9328A, 0x2678A647, 0x98312229, 0x2F6C79B3, // Round Key 5
-            0x812C81AD, 0xDADF48BA, 0x24360AF2, 0xFAB8B464, // Round Key 6
-            0x98C5BFC9, 0xBEBD198E, 0x268C3BA7, 0x09E04214, // Round Key 7
-            0x68007BAC, 0xB2DF3316, 0x96E939E4, 0x6C518D80, // Round Key 8
-            0xC814E204, 0x76A9FB8A, 0x5025C02D, 0x59C58239, // Round Key 9
-            0xDE136967, 0x6CCC5A71, 0xFA256395, 0x9674EE15, // Round Key 10
-            0x5886CA5D, 0x2E2F31D7, 0x7E0AF1FA, 0x27CF73C3, // Round Key 11
-            0x749C47AB, 0x18501DDA, 0xE2757E4F, 0x7401905A, // Round Key 12
-            0xCAFAAAE3, 0xE4D59B34, 0x9ADF6ACE, 0xBD10190D, // Round Key 13
-            0xFE4890D1, 0xE6188D0B, 0x046DF344, 0x706C631E, // Round Key 14
+            hex!("603DEB10"), hex!("15CA71BE"), hex!("2B73AEF0"), hex!("857D7781"), // Round Key 0
+            hex!("1F352C07"), hex!("3B6108D7"), hex!("2D9810A3"), hex!("0914DFF4"), // Round Key 1
+            hex!("9BA35411"), hex!("8E6925AF"), hex!("A51A8B5F"), hex!("2067FCDE"), // Round Key 2
+            hex!("A8B09C1A"), hex!("93D194CD"), hex!("BE49846E"), hex!("B75D5B9A"), // Round Key 3
+            hex!("D59AECB8"), hex!("5BF3C917"), hex!("FEE94248"), hex!("DE8EBE96"), // Round Key 4
+            hex!("B5A9328A"), hex!("2678A647"), hex!("98312229"), hex!("2F6C79B3"), // Round Key 5
+            hex!("812C81AD"), hex!("DADF48BA"), hex!("24360AF2"), hex!("FAB8B464"), // Round Key 6
+            hex!("98C5BFC9"), hex!("BEBD198E"), hex!("268C3BA7"), hex!("09E04214"), // Round Key 7
+            hex!("68007BAC"), hex!("B2DF3316"), hex!("96E939E4"), hex!("6C518D80"), // Round Key 8
+            hex!("C814E204"), hex!("76A9FB8A"), hex!("5025C02D"), hex!("59C58239"), // Round Key 9
+            hex!("DE136967"), hex!("6CCC5A71"), hex!("FA256395"), hex!("9674EE15"), // Round Key 10
+            hex!("5886CA5D"), hex!("2E2F31D7"), hex!("7E0AF1FA"), hex!("27CF73C3"), // Round Key 11
+            hex!("749C47AB"), hex!("18501DDA"), hex!("E2757E4F"), hex!("7401905A"), // Round Key 12
+            hex!("CAFAAAE3"), hex!("E4D59B34"), hex!("9ADF6ACE"), hex!("BD10190D"), // Round Key 13
+            hex!("FE4890D1"), hex!("E6188D0B"), hex!("046DF344"), hex!("706C631E"), // Round Key 14
         ];
 
         for (i, _) in expected_words.iter().enumerate() {
             assert_eq!(
-                u32::from_be_bytes(aes.expanded_key_words[i]),
+                aes.expanded_key_words[i],
                 expected_words[i],
                 "Word {}", i
             );
@@ -335,22 +316,22 @@ mod tests {
 
     #[test]
     fn aes_256_encrypt_one_full_block() {
-        let plaintext = (0x00112233_44556677_8899AABB_CCDDEEFF as u128).to_be_bytes();
-        let cipher_key = *b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F";
+        let plaintext = hex!("00112233 44556677 8899AABB CCDDEEFF");
+        let cipher_key = hex!("00010203 04050607 08090A0B 0C0D0E0F 10111213 14151617 18191A1B 1C1D1E1F");
 
         let actual_ciphertext = Aes256::with_key(cipher_key).encrypt_block(plaintext);
-        let expected_ciphertext = (0x8EA2B7CA_516745BF_EAFC4990_4B496089 as u128).to_be_bytes();
+        let expected_ciphertext = hex!("8EA2B7CA 516745BF EAFC4990 4B496089");
 
         assert_eq!(actual_ciphertext, expected_ciphertext);
     }
 
     #[test]
     fn aes_256_decrypt_one_full_block() {
-        let ciphertext = (0x8EA2B7CA_516745BF_EAFC4990_4B496089 as u128).to_be_bytes();
-        let cipher_key = *b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F";
+        let ciphertext = hex!("8EA2B7CA 516745BF EAFC4990 4B496089");
+        let cipher_key = hex!("00010203 04050607 08090A0B 0C0D0E0F 10111213 14151617 18191A1B 1C1D1E1F");
 
         let actual_plaintext = Aes256::with_key(cipher_key).decrypt_block(ciphertext);
-        let expected_plaintext = (0x00112233_44556677_8899AABB_CCDDEEFF as u128).to_be_bytes();
+        let expected_plaintext = hex!("00112233 44556677 8899AABB CCDDEEFF");
 
         assert_eq!(actual_plaintext, expected_plaintext);
     }
