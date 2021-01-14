@@ -1,134 +1,132 @@
-use super::super::coding::BLOCKS_PER_OCTET;
-use super::super::coding::BLOCKS_PER_SEXTET;
-use super::super::tables;
+use crate::{OCTETS_PER_BLOCK, SEXTETS_PER_BLOCK};
+use crate::PAD_BYTE;
+use crate::U6;
+use crate::tables;
 
-#[derive(Debug)]
-pub struct Radix64Encoder;
+pub(crate) fn encode(input: &[u8]) -> Vec<U6> {
+    let chunks = input.chunks(OCTETS_PER_BLOCK);
+    let capacity = chunks.len() / OCTETS_PER_BLOCK * SEXTETS_PER_BLOCK;
 
-impl Radix64Encoder {
-    pub fn encode(input: &[u8]) -> Vec<u8> {
-        let octets_remaining = input.len() % BLOCKS_PER_OCTET;
-        let octets_main_length = input.len() - octets_remaining;
+    let mut output = Vec::with_capacity(capacity);
 
-        let mut output: Vec<u8> = vec![];
+    for chunk in chunks {
+        let chunk_encoded = match chunk.len() {
+            3 => encode_3_octets_chunk(chunk),
+            2 => encode_2_octets_chunk(chunk),
+            1 => encode_1_octet_chunk(chunk),
+            n => unreachable!("A chunk must contain 1, 2 or 3 octets, but {} found.", n),
+        };
 
-        for i in (0..octets_main_length).step_by(BLOCKS_PER_OCTET) {
-            // Source   Text (ASCII)    M              |a              |n
-            //          Octets          77 (0x4d)      |97 (0x61)      |110 (0x6e)
-            // Bits                     0 1 0 0 1 1¦0 1|0 1 1 0¦0 0 0 1|0 1¦1 0 1 1 1 0
-            // Encoded  Sextets         19         |22         |5          |46
-            //          Character       T          |W          |F          |u
-            //          Octets          84 (0x54)  |87 (0x57)  |70 (0x46)  |117 (0x75)
-            let octets_joined: u32 =
-                ((input[i + 0] as u32) << 16) |
-                ((input[i + 1] as u32) << 8) |
-                ((input[i + 2] as u32) << 0)
-            ;
-
-            // Bit masks to extract 6-bit segments from the triplet octet chunk
-            let sextets: [u8; BLOCKS_PER_SEXTET] = [
-                ((octets_joined & 0b11111100_00000000_00000000) >> 18) as u8,
-                ((octets_joined & 0b00000011_11110000_00000000) >> 12) as u8,
-                ((octets_joined & 0b00000000_00001111_11000000) >> 6) as u8,
-                ((octets_joined & 0b00000000_00000000_00111111) >> 0) as u8,
-            ];
-
-            for &sextet in sextets.iter() {
-                output.push(tables::STD_ENCODE[sextet as usize]);
-            }
-        }
-
-        if octets_remaining == 2 {
-            let octets_joined =
-                (input[octets_main_length + 0] as u32) << 8 |
-                (input[octets_main_length + 1] as u32) << 0
-            ;
-
-            let sextets: [u8; 3] = [
-                ((octets_joined & 0b11111100_00000000) >> 10) as u8,
-                ((octets_joined & 0b00000011_11110000) >> 4) as u8,
-
-                // Set the 2 least significant bits to zero
-                ((octets_joined & 0b00000000_00001111) << 2) as u8,
-            ];
-
-            for sextet in sextets.iter() {
-                output.push(tables::STD_ENCODE[*sextet as usize]);
-            }
-
-            output.push(b'=');
-        } else if octets_remaining == 1 {
-            let octets_joined = input[octets_main_length];
-
-            let sextets: [u8; 2] = [
-                (octets_joined & 0b11111100) >> 2,
-
-                // Set the 4 least significant bits to zero
-                (octets_joined & 0b00000011) << 4,
-            ];
-
-            output.push(tables::STD_ENCODE[sextets[0] as usize]);
-            output.push(tables::STD_ENCODE[sextets[1] as usize]);
-            output.push(b'=');
-            output.push(b'=');
-        }
-
-        output
+        output.extend(&chunk_encoded);
     }
+
+    output
+}
+
+fn encode_3_octets_chunk(input: &[u8]) -> [U6; SEXTETS_PER_BLOCK] {
+    // Source   Text (ASCII)    M              |a              |n
+    //          Octets          77 (0x4d)      |97 (0x61)      |110 (0x6e)
+    // Bits                     0 1 0 0 1 1¦0 1|0 1 1 0¦0 0 0 1|0 1¦1 0 1 1 1 0
+    // Encoded  Sextets         19         |22         |5          |46
+    //          Character       T          |W          |F          |u
+    //          Octets          84 (0x54)  |87 (0x57)  |70 (0x46)  |117 (0x75)
+    let octets_joined: u32 =
+        ((input[0] as u32) << 16) |
+        ((input[1] as u32) << 8) |
+        ((input[2] as u32) << 0)
+    ;
+
+    // Bit masks to extract 6-bit segments from the triplet octet chunk
+    let sextets: [U6; SEXTETS_PER_BLOCK] = [
+        ((octets_joined & 0b11111100_00000000_00000000) >> 18) as U6,
+        ((octets_joined & 0b00000011_11110000_00000000) >> 12) as U6,
+        ((octets_joined & 0b00000000_00001111_11000000) >> 6) as U6,
+        ((octets_joined & 0b00000000_00000000_00111111) >> 0) as U6,
+    ];
+
+    [
+        tables::STD_ENCODE[sextets[0] as usize],
+        tables::STD_ENCODE[sextets[1] as usize],
+        tables::STD_ENCODE[sextets[2] as usize],
+        tables::STD_ENCODE[sextets[3] as usize],
+    ]
+}
+
+fn encode_2_octets_chunk(input: &[u8]) -> [U6; SEXTETS_PER_BLOCK] {
+    let octets_joined =
+        (input[0] as u32) << 8 |
+        (input[1] as u32) << 0
+    ;
+
+    let sextets: [U6; 3] = [
+        ((octets_joined & 0b11111100_00000000) >> 10) as u8,
+        ((octets_joined & 0b00000011_11110000) >> 4) as u8,
+
+        // Set the 2 least significant bits to zero
+        ((octets_joined & 0b00000000_00001111) << 2) as u8,
+    ];
+
+    [
+        tables::STD_ENCODE[sextets[0] as usize],
+        tables::STD_ENCODE[sextets[1] as usize],
+        tables::STD_ENCODE[sextets[2] as usize],
+        PAD_BYTE,
+    ]
+}
+
+fn encode_1_octet_chunk(input: &[u8]) -> [U6; SEXTETS_PER_BLOCK] {
+    let octets_joined = input[0];
+
+    let sextets: [U6; 2] = [
+        (octets_joined & 0b11111100) >> 2,
+
+        // Set the 4 least significant bits to zero
+        (octets_joined & 0b00000011) << 4,
+    ];
+
+    [
+        tables::STD_ENCODE[sextets[0] as usize],
+        tables::STD_ENCODE[sextets[1] as usize],
+        PAD_BYTE,
+        PAD_BYTE,
+    ]
 }
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-    use super::*;
-
     #[test]
     fn encode_1_char() {
-        let encoded = Radix64Encoder::encode(b"H");
-
-        assert_eq!(encoded, b"SA==");
+        assert_eq!(super::encode(b"H"), b"SA==");
     }
 
     #[test]
     fn encode_2_chars() {
-        let encoded = Radix64Encoder::encode(b"He");
-
-        assert_eq!(encoded, b"SGU=");
+        assert_eq!(super::encode(b"He"), b"SGU=");
     }
 
     #[test]
     fn encode_3_chars() {
-        let encoded = Radix64Encoder::encode(b"Hel");
-
-        assert_eq!(encoded, b"SGVs");
+        assert_eq!(super::encode(b"Hel"), b"SGVs");
     }
 
     #[test]
     fn encode_4_chars() {
-        let encoded = Radix64Encoder::encode(b"Hell");
-
-        assert_eq!(encoded, b"SGVsbA==");
+        assert_eq!(super::encode(b"Hell"), b"SGVsbA==");
     }
 
     #[test]
     fn encode_5_chars() {
-        let encoded = Radix64Encoder::encode(b"Hello");
-
-        assert_eq!(encoded, b"SGVsbG8=");
+        assert_eq!(super::encode(b"Hello"), b"SGVsbG8=");
     }
 
     #[test]
     fn encode_6_chars() {
-        let encoded = Radix64Encoder::encode(b"Hello!");
-
-        assert_eq!(encoded, b"SGVsbG8h");
+        assert_eq!(super::encode(b"Hello!"), b"SGVsbG8h");
     }
 
     #[test]
     fn encode_12_chars() {
-        let encoded = Radix64Encoder::encode(b"Hello World!");
-
-        assert_eq!(encoded, b"SGVsbG8gV29ybGQh");
+        assert_eq!(super::encode(b"Hello World!"), b"SGVsbG8gV29ybGQh");
     }
 
     #[test]
@@ -153,17 +151,15 @@ mod tests {
             dCBlc3NlIGNpbGx1bSBkb2xvcmUgZXUgZnVnaWF0IG51bGxhIHBhcmlhdHVyLiBF\
             eGNlcHRldXIgc2ludCBvY2NhZWNhdCBjdXBpZGF0YXQgbm9uIHByb2lkZW50LCBz\
             dW50IGluIGN1bHBhIHF1aSBvZmZpY2lhIGRlc2VydW50IG1vbGxpdCBhbmltIGlk\
-            IGVzdCBsYWJvcnVtLg=="
-        ;
+            IGVzdCBsYWJvcnVtLg==\
+        ".to_vec();
 
-        let encoded = Radix64Encoder::encode(unencoded);
-
-        assert_eq!(encoded.to_vec(), expected.to_vec());
+        assert_eq!(super::encode(unencoded), expected);
     }
 
     #[test]
     fn encode_binary_file() {
-        let file_contents = fs::read("tests/resources/gnupg-icon.png").unwrap();
+        let binary = std::fs::read("tests/resources/gnupg-icon.png").unwrap();
 
         let expected = b"\
             iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAMAAAD04JH5AAAAM1BMVEUAk90NmN48\
@@ -198,10 +194,8 @@ mod tests {
             w9MAq6XAIwCT7+NnARSjZPcV3C7AsRfMMRdrVPEG72oPhCc28Qn0QlK61gPqu+H6\
             v6SU8alrenxdq33cA6HM8zlHDxYuwzninDcpH/eAAM1LO3Ot1g4Qzrr766w5GSl2\
             sU0Ob/4BrGxXIweWt2UAAAAASUVORK5CYII=\
-        ";
+        ".to_vec();
 
-        let encoded = Radix64Encoder::encode(&file_contents);
-
-        assert_eq!(encoded.to_vec(), expected.to_vec());
+        assert_eq!(super::encode(&binary), expected);
     }
 }

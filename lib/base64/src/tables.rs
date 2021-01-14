@@ -1,6 +1,8 @@
+use crate::U6;
+
 pub const INVALID_VALUE: u8 = 255;
 
-pub const STD_ENCODE: &[u8; 64] = &[
+pub const STD_ENCODE: &[U6; 64] = &[
     65,            // input   0 (0x00) => 'A' (0x41)
     66,            // input   1 (0x01) => 'B' (0x42)
     67,            // input   2 (0x02) => 'C' (0x43)

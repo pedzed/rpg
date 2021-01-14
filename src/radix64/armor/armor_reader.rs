@@ -2,14 +2,14 @@ use std::io;
 use std::fs;
 use std::collections::HashMap;
 
+use base64::DecoderError;
+
 use super::armor_checksums::ArmorChecksum;
 use super::armor_data_types::ArmorDataTypeError;
 use super::armor_data_types::ArmorDataType;
 use super::armor_data_headers::ArmorDataHeader;
 use super::super::armor::ArmorDataHeaderMap;
 use super::super::armor::LINE_ENDING;
-use super::super::coding::decoder::Radix64Decoder;
-use super::super::coding::decoder_errors::DecoderError;
 
 #[derive(Debug, PartialEq)]
 pub struct ArmorReaderError(String);
@@ -40,7 +40,7 @@ impl ArmorReader {
         let data_type = Self::parse_data_type(&input);
         let data_headers = Self::parse_data_headers(&input);
         let encoded_data = Self::parse_data(&input);
-        let decoded_data = Radix64Decoder::decode(&encoded_data);
+        let decoded_data = base64::decode(&encoded_data);
         let checksum = Self::parse_checksum(&input);
 
         Self {

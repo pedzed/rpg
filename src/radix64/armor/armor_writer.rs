@@ -6,7 +6,6 @@ use super::armor_data_types::ArmorDataType;
 use super::armor_data_headers::ArmorDataHeader;
 use super::super::armor::ArmorDataHeaderMap;
 use super::super::armor::LINE_ENDING;
-use super::super::coding::encoder::Radix64Encoder;
 
 /// The encoded output stream must be represented in lines of no more
 /// than 76 characters each according to RFC 4880. GnuPG uses 64.
@@ -43,7 +42,7 @@ impl ArmorWriter {
 
     pub fn set_data(&mut self, data: &[u8]) {
         self.checksum = Some(ArmorChecksum::from_payload(data));
-        self.data = Some(Radix64Encoder::encode(data));
+        self.data = Some(base64::encode(data));
     }
 
     /// Does not err if provided data is incomplete

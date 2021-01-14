@@ -1,191 +1,131 @@
-use super::decoder_errors::DecoderError;
-use super::super::coding::BLOCKS_PER_SEXTET;
-use super::super::tables;
+use crate::{OCTETS_PER_BLOCK, PAD_BYTE};
+use crate::SEXTETS_PER_BLOCK;
+use crate::U6;
+use crate::tables;
+use crate::DecoderError;
 
-const INVALID_VALUE: u8 = 255;
+pub(crate) fn decode(input: &[u8]) -> Result<Vec<u8>, DecoderError> {
+    let mut input = remove_whitespaces(input);
+    input = remove_padding(&input).to_owned(); // TODO: Optimize
 
-#[derive(Debug)]
-pub struct Radix64Decoder;
+    convert_sextets_to_octets(&mut input)?;
 
-impl Radix64Decoder {
-    pub fn decode(input: &[u8]) -> Result<Vec<u8>, DecoderError> {
-        let input = Self::remove_padding(input);
-        let input = Self::remove_whitespaces(input);
+    let chunks = input.chunks(SEXTETS_PER_BLOCK);
+    let capacity = chunks.len() / SEXTETS_PER_BLOCK * OCTETS_PER_BLOCK;
 
-        let all_chunks: Vec<&[u8]> = input.chunks(BLOCKS_PER_SEXTET).collect();
-        let (last_chunk, main_chunks) = all_chunks.split_last().unwrap();
+    let mut output= Vec::with_capacity(capacity);
 
-        let mut output;
-
-        if last_chunk.len() == BLOCKS_PER_SEXTET {
-            output = Self::decode_full_chunks(&all_chunks)?;
-        } else {
-            output = Self::decode_full_chunks(main_chunks)?;
-
-            let mut unencoded_partial = Self::decode_partial_chunk(last_chunk)?;
-            output.append(&mut unencoded_partial);
-        }
-
-        Ok(output)
-    }
-
-    fn remove_padding(input: &[u8]) -> &[u8] {
-        let padding_count = input
-            .iter()
-            .rev()
-            .take_while(|&b| *b == b'=')
-            .count()
-        ;
-
-        match padding_count {
-            0 => &input[0..input.len()-0],
-            1 => &input[0..input.len()-1],
-            2 => &input[0..input.len()-2],
-            x => unreachable!("Padding count of {} not possible.", x),
-        }
-    }
-
-    fn remove_whitespaces(input: &[u8]) -> Vec<u8> {
-        input
-            .iter()
-            .copied()
-            .filter(|c| !c.is_ascii_whitespace())
-            .collect()
-    }
-
-    fn decode_full_chunks(chunks: &[&[u8]]) -> Result<Vec<u8>, DecoderError> {
-        let mut unencoded: Vec<u8> = vec![];
-
-        for chunk in chunks {
-            unencoded.append(&mut Self::decode_full_chunk(chunk)?);
-        }
-
-        Ok(unencoded)
-    }
-
-    fn decode_full_chunk(chunk: &[u8]) -> Result<Vec<u8>, DecoderError> {
-        let decoded_sextets = Self::decode_sextets(chunk)?;
-
-        let sextets_joined: u32 =
-            ((decoded_sextets[0] as u32) << 18) |
-            ((decoded_sextets[1] as u32) << 12) |
-            ((decoded_sextets[2] as u32) << 6) |
-            ((decoded_sextets[3] as u32) << 0)
-        ;
-
-        Ok(vec![
-            ((sextets_joined & 0b11111111_00000000_00000000) >> 16) as u8,
-            ((sextets_joined & 0b00000000_11111111_00000000) >> 8) as u8,
-            ((sextets_joined & 0b00000000_00000000_11111111) >> 0) as u8,
-        ])
-    }
-
-    fn decode_sextets(chunk: &[u8]) -> Result<Vec<u8>, DecoderError>  {
-        let mut decoded_sextets = vec![];
-
-        for (i, &encoded_sextet) in chunk.iter().enumerate() {
-            decoded_sextets.push(tables::STD_DECODE[encoded_sextet as usize]);
-
-            if decoded_sextets[i] == INVALID_VALUE {
-                return Err(DecoderError::UnexpectedChar(encoded_sextet))
-            }
-        }
-
-        Ok(decoded_sextets)
-    }
-
-    fn decode_partial_chunk(chunk: &[u8]) -> Result<Vec<u8>, DecoderError> {
-        let decoded_sextets = Self::decode_sextets(chunk)?;
-
-        let output: Vec<u8>;
-
+    for chunk in chunks {
         match chunk.len() {
-            3 => {
-                output = vec![
-                    ((decoded_sextets[0] << 2) | (decoded_sextets[1] >> 4)) as u8,
-                    ((decoded_sextets[1] << 4) | (decoded_sextets[2] >> 2)) as u8,
-                ];
-            },
-            2 => {
-                output = vec![
-                    ((decoded_sextets[0] << 2) | (decoded_sextets[1] >> 4)) as u8,
-                ];
-            },
-            x => unreachable!("Chunk size of {} is not possible.", x),
-        }
+            4 => output.extend(&convert_4_octets_to_3(chunk)),
+            3 => output.extend(&convert_3_octets_to_2(chunk)),
+            2 => output.extend(&convert_2_octets_to_1(chunk)),
+            n => unreachable!("A chunk must contain 2, 3 or 4 sextets, but {} found.", n),
+        };
+    }
 
-        Ok(output)
+    Ok(output)
+}
+
+fn convert_sextets_to_octets(input: &mut [u8]) -> Result<(), DecoderError> {
+    for element in input {
+        *element = decode_sextet_to_octet(*element)?;
+    }
+
+    Ok(())
+}
+
+fn decode_sextet_to_octet(input: U6) -> Result<u8, DecoderError> {
+    match tables::STD_DECODE[input as usize] {
+        tables::INVALID_VALUE => Err(DecoderError::UnexpectedChar(input)),
+        x => Ok(x),
     }
 }
 
+fn convert_4_octets_to_3(chunk: &[u8]) -> [u8; 3] {
+    let joined: u32 =
+        ((chunk[0] as u32) << 18) |
+        ((chunk[1] as u32) << 12) |
+        ((chunk[2] as u32) << 6) |
+        ((chunk[3] as u32) << 0)
+    ;
+
+    [
+        ((joined & 0b11111111_00000000_00000000) >> 16) as u8,
+        ((joined & 0b00000000_11111111_00000000) >> 8) as u8,
+        ((joined & 0b00000000_00000000_11111111) >> 0) as u8,
+    ]
+}
+
+fn convert_3_octets_to_2(chunk: &[u8]) -> [u8; 2] {
+    [
+        ((chunk[0] << 2) | (chunk[1] >> 4)) as u8,
+        ((chunk[1] << 4) | (chunk[2] >> 2)) as u8,
+    ]
+}
+
+fn convert_2_octets_to_1(chunk: &[u8]) -> [u8; 1] {
+    [
+        ((chunk[0] << 2) | (chunk[1] >> 4)) as u8,
+    ]
+}
+
+fn remove_padding(input: &[u8]) -> &[u8] {
+    input
+        .iter()
+        .rposition(|&b| b != PAD_BYTE)
+        .map(|i| &input[..=i])
+        .unwrap_or_default()
+}
+
+fn remove_whitespaces(input: &[u8]) -> Vec<u8> {
+    input
+        .iter()
+        .copied()
+        .filter(|c| !c.is_ascii_whitespace())
+        .collect()
+}
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-    use super::*;
-
     #[test]
-    fn remove_padding_0() {
-        assert_eq!(Radix64Decoder::remove_padding(b"SGVs"), b"SGVs");
+    fn decode_2_sextets() {
+        assert_eq!(super::decode(b"SA==").unwrap(), b"H");
     }
 
     #[test]
-    fn remove_padding_1() {
-        assert_eq!(Radix64Decoder::remove_padding(b"SGU="), b"SGU");
+    fn decode_3_sextets() {
+        assert_eq!(super::decode(b"SGU=").unwrap(), b"He");
     }
 
     #[test]
-    fn remove_padding_2() {
-        assert_eq!(Radix64Decoder::remove_padding(b"SA=="), b"SA");
+    fn decode_4_sextets() {
+        assert_eq!(super::decode(b"SGVs").unwrap(), b"Hel");
     }
 
     #[test]
-    fn decode_2_chars() {
-        let decoded = Radix64Decoder::decode(b"SA==").unwrap();
-
-        assert_eq!(decoded, b"H");
+    fn decode_6_sextets() {
+        assert_eq!(super::decode(b"SGVsbA==").unwrap(), b"Hell");
     }
 
     #[test]
-    fn decode_3_chars() {
-        let decoded = Radix64Decoder::decode(b"SGU=").unwrap();
-
-        assert_eq!(decoded, b"He");
+    fn decode_7_sextets() {
+        assert_eq!(super::decode(b"SGVsbG8=").unwrap(), b"Hello");
     }
 
     #[test]
-    fn decode_4_chars() {
-        let decoded = Radix64Decoder::decode(b"SGVs").unwrap();
-
-        assert_eq!(decoded, b"Hel");
+    fn decode_8_sextets() {
+        assert_eq!(super::decode(b"SGVsbG8h").unwrap(), b"Hello!");
     }
 
     #[test]
-    fn decode_6_chars() {
-        let decoded = Radix64Decoder::decode(b"SGVsbA==").unwrap();
-
-        assert_eq!(decoded, b"Hell");
+    fn decode_16_sextets() {
+        assert_eq!(super::decode(b"SGVsbG8gV29ybGQh").unwrap(), b"Hello World!");
     }
 
     #[test]
-    fn decode_7_chars() {
-        let decoded = Radix64Decoder::decode(b"SGVsbG8=").unwrap();
-
-        assert_eq!(decoded, b"Hello");
-    }
-
-    #[test]
-    fn decode_8_chars() {
-        let decoded = Radix64Decoder::decode(b"SGVsbG8h").unwrap();
-
-        assert_eq!(decoded, b"Hello!");
-    }
-
-    #[test]
-    fn decode_16_chars() {
-        let decoded = Radix64Decoder::decode(b"SGVsbG8gV29ybGQh").unwrap();
-
-        assert_eq!(decoded, b"Hello World!");
+    fn decode_equal_sign() {
+        assert_eq!(super::decode(b"PQ==").unwrap(), b"=");
     }
 
     #[test]
@@ -202,6 +142,7 @@ mod tests {
             dW50IGluIGN1bHBhIHF1aSBvZmZpY2lhIGRlc2VydW50IG1vbGxpdCBhbmltIGlk\
             IGVzdCBsYWJvcnVtLg==\
         ";
+
         let expected = b"\
             Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do \
             eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut \
@@ -210,11 +151,9 @@ mod tests {
             reprehenderit in voluptate velit esse cillum dolore eu fugiat \
             nulla pariatur. Excepteur sint occaecat cupidatat non proident, \
             sunt in culpa qui officia deserunt mollit anim id est laborum.\
-        ";
+        ".to_vec();
 
-        let decoded = Radix64Decoder::decode(encoded).unwrap();
-
-        assert_eq!(decoded.to_vec(), expected.to_vec());
+        assert_eq!(super::decode(encoded).unwrap(), expected);
     }
 
     #[test]
@@ -231,6 +170,7 @@ mod tests {
             dW50IGluIGN1bHBhIHF1aSBvZmZpY2lhIGRlc2VydW50IG1vbGxpdCBhbmltIGlk\r\n\
             IGVzdCBsYWJvcnVtLg==\
         ";
+
         let expected = b"\
             Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do \
             eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut \
@@ -239,11 +179,9 @@ mod tests {
             reprehenderit in voluptate velit esse cillum dolore eu fugiat \
             nulla pariatur. Excepteur sint occaecat cupidatat non proident, \
             sunt in culpa qui officia deserunt mollit anim id est laborum.\
-        ";
+        ".to_vec();
 
-        let decoded = Radix64Decoder::decode(encoded).unwrap();
-
-        assert_eq!(decoded.to_vec(), expected.to_vec());
+        assert_eq!(super::decode(encoded).unwrap(), expected);
     }
 
     #[test]
@@ -283,9 +221,23 @@ mod tests {
             sU0Ob/4BrGxXIweWt2UAAAAASUVORK5CYII=\
         ";
 
-        let decoded = Radix64Decoder::decode(encoded).unwrap();
-        let file_contents = fs::read("tests/resources/gnupg-icon.png").unwrap();
+        let expected = std::fs::read("tests/resources/gnupg-icon.png").unwrap();
 
-        assert_eq!(decoded, file_contents);
+        assert_eq!(super::decode(encoded).unwrap(), expected);
+    }
+
+    #[test]
+    fn remove_padding_0() {
+        assert_eq!(super::remove_padding(b"SGVs"), b"SGVs");
+    }
+
+    #[test]
+    fn remove_padding_1() {
+        assert_eq!(super::remove_padding(b"SGU="), b"SGU");
+    }
+
+    #[test]
+    fn remove_padding_2() {
+        assert_eq!(super::remove_padding(b"SA=="), b"SA");
     }
 }
