@@ -46,6 +46,14 @@ impl OpenPgpCfbAes128 {
         C.append(&mut xor_block(&FRE, &plaintext_blocks.next().unwrap()));
 
         while let Some(plaintext_block) = plaintext_blocks.next() {
+            {
+                let current = C.len();
+                let total = C.capacity();
+                let percentage = current as f32 / total as f32 * 100.0;
+
+                println!("{:.1}% encrypted ({}/{} KB).", percentage, current / 1000, total / 1000);
+            }
+
             let range = (C.len() - Self::BS)..C.len();
             FR = C[range].try_into()?;
             FRE = Self::encrypt_block(&FR, key)?;
@@ -81,6 +89,14 @@ impl OpenPgpCfbAes128 {
         }
 
         while let Some(FR) = ciphertext_blocks.next() {
+            {
+                let current = decrypted.len();
+                let total = decrypted.capacity();
+                let percentage = current as f32 / total as f32 * 100.0;
+
+                println!("{:.1}% decrypted ({}/{} KB).", percentage, current / 1000, total / 1000);
+            }
+
             if let Some(ciphertext_block) = ciphertext_blocks.peek() {
                 let FRE = Self::encrypt_block(&FR, key)?;
 
