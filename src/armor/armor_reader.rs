@@ -293,7 +293,7 @@ mod tests {
         let binary_file = "tests/resources/gnupg-icon.png";
         let expected_data = fs::read(binary_file).unwrap();
 
-        let armor_file = "tests/resources/radix64/armor/gnupg-icon.png.asc";
+        let armor_file = "tests/resources/gnupg-icon.png.asc";
         let armor = ArmorReader::read_file(armor_file).unwrap();
         let armor_data = armor.decoded_data.unwrap();
 

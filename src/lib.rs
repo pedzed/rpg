@@ -1,12 +1,13 @@
+pub mod armor;
+pub mod crc24;
 pub mod crypto;
-pub mod radix64;
 
 use std::fs;
 
 use crypto::openpgp_cfb::OpenPgpCfbAes128;
-use radix64::armor::{armor_reader::ArmorReader, armor_writer::ArmorWriter};
-use radix64::armor::armor_data_types::ArmorDataType;
-use radix64::armor::armor_data_headers::ArmorDataHeader;
+use armor::{armor_reader::ArmorReader, armor_writer::ArmorWriter};
+use armor::armor_data_types::ArmorDataType;
+use armor::armor_data_headers::ArmorDataHeader;
 
 pub type Error = Box<dyn std::error::Error>;
 
