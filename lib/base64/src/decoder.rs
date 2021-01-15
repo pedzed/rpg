@@ -4,7 +4,17 @@ use crate::U6;
 use crate::tables;
 use crate::DecoderError;
 
-pub(crate) fn decode(input: &[u8]) -> Result<Vec<u8>, DecoderError> {
+/// Decode base64 encoded data.
+///
+/// # Examples
+/// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// assert_eq!(base64::decode(b"SGVsbG8gV29ybGQh")?, b"Hello World!");
+/// assert_eq!(base64::decode(b"SGVsbG8=")?, &[0x48, 0x65, 0x6C, 0x6C, 0x6F]);
+/// # Ok(())
+/// # }
+/// ```
+pub fn decode(input: &[u8]) -> Result<Vec<u8>, DecoderError> {
     let mut input = remove_whitespaces(input);
     input = remove_padding(&input).to_owned(); // TODO: Optimize
 

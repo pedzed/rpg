@@ -3,7 +3,16 @@ use crate::PAD_BYTE;
 use crate::U6;
 use crate::tables;
 
-pub(crate) fn encode(input: &[u8]) -> Vec<U6> {
+/// Encode octets to sextets using base64.
+///
+/// Base64 encoding is useful for safe binary data transmission.
+///
+/// # Examples
+/// ```rust
+/// assert_eq!(base64::encode(b"Hello World!"), b"SGVsbG8gV29ybGQh");
+/// assert_eq!(base64::encode(&[0x48, 0x65, 0x6C, 0x6C, 0x6F]), b"SGVsbG8=");
+/// ```
+pub fn encode(input: &[u8]) -> Vec<U6> {
     let chunks = input.chunks(OCTETS_PER_BLOCK);
     let capacity = chunks.len() / OCTETS_PER_BLOCK * SEXTETS_PER_BLOCK;
 
