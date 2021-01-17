@@ -1,13 +1,13 @@
-pub mod armor;
-pub mod crc24;
 pub mod crypto;
 
 use std::fs;
 
+use ascii_armor::ArmorWriterBuilder;
+use ascii_armor::ArmorDataHeader;
+use ascii_armor::ArmorDataType;
+use ascii_armor::ArmorReader;
+
 use crypto::openpgp_cfb::OpenPgpCfbAes128;
-use armor::{armor_reader::ArmorReader, armor_writer::ArmorWriter};
-use armor::armor_data_types::ArmorDataType;
-use armor::armor_data_headers::ArmorDataHeader;
 
 pub type Error = Box<dyn std::error::Error>;
 
@@ -67,29 +67,31 @@ impl EncryptionCommand {
             .expect("Failed to encrypt.")
         ;
 
-        let output = match self.with_armor {
-            true => {
-                let mut armor = ArmorWriter::new();
-                armor.data_type = Some(ArmorDataType::PgpMessage);
-                armor.add_data_header(
+
+        if self.with_armor {
+            let mut buffer = fs::File::create(&self.output_file).unwrap();
+
+            let armor = ArmorWriterBuilder::new()
+                .data_type(ArmorDataType::PgpMessage)
+                .add_data_header(
                     ArmorDataHeader::Version,
                     &format!("{} v{}", APP_NAME, APP_VERSION)
-                );
+                )
+                .data(&ciphertext)
+                .build()
+            ;
 
-                armor.set_data(&ciphertext);
-                armor.write_unsafe().as_bytes().to_vec()
-            },
-            false => ciphertext,
-        };
-
-        fs::write(&self.output_file, &output)
-            .expect(&format!("Could not write to `{}`.", &self.output_file))
-        ;
+            armor.write_unchecked(&mut buffer).unwrap();
+        } else {
+            fs::write(&self.output_file, &ciphertext)
+                .expect(&format!("Could not write to `{}`.", &self.output_file))
+            ;
+        }
 
         println!(
             "Successfully encrypted `{}`. {} bytes of ciphertext written to {}.",
             &self.input_file,
-            output.len(),
+            ciphertext.len(),
             &self.output_file,
         );
     }
@@ -129,10 +131,6 @@ impl DecryptionCommand {
             Err(_) => &input,
         };
 
-        let plaintext = OpenPgpCfbAes128::decrypt(&ciphertext, &self.cipher_key)
-            .expect("Failed to encrypt.")
-        ;
-
         match armor_reader {
             Ok(ref armor) => {
                 let checksum = armor.checksum.as_ref().expect("Could not read checksum.");
@@ -145,6 +143,7 @@ impl DecryptionCommand {
                         match self.ignore_crc_error {
                             true => {
                                 println!("✗ Checksum verification of `{}` failed. Ignoring...", checksum.get());
+                                std::thread::sleep(std::time::Duration::from_millis(2500));
                             },
                             false => {
                                 panic!("✗ Checksum verification of `{}` failed. Aborting.", checksum.get());
@@ -155,6 +154,10 @@ impl DecryptionCommand {
             },
             Err(_) => {},
         }
+
+        let plaintext = OpenPgpCfbAes128::decrypt(&ciphertext, &self.cipher_key)
+            .expect("Failed to encrypt.")
+        ;
 
         fs::write(&self.output_file, &plaintext)
             .expect(&format!("Could not write to `{}`.", &self.output_file))

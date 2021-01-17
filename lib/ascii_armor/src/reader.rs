@@ -1,18 +1,18 @@
+// TODO: Refactor file to be more consistent with ArmorWriter
+// TODO: Work on documentation
+
 use std::io;
 use std::fs;
-use std::collections::HashMap;
 
 use base64::DecoderError;
 
-use super::armor_checksums::ArmorChecksum;
-use super::armor_data_types::ArmorDataTypeError;
-use super::armor_data_types::ArmorDataType;
-use super::armor_data_headers::ArmorDataHeader;
-use super::super::armor::ArmorDataHeaderMap;
-use super::super::armor::LINE_ENDING;
+use crate::ArmorChecksum;
+use crate::ArmorDataHeader;
+use crate::ArmorDataHeaderMap;
+use crate::ArmorDataType;
+use crate::ArmorError;
 
-#[derive(Debug, PartialEq)]
-pub struct ArmorReaderError(String);
+use crate::LINE_ENDING;
 
 type ArmorData = Vec<u8>;
 
@@ -20,11 +20,11 @@ type ArmorData = Vec<u8>;
 // https://tools.ietf.org/html/rfc4880#section-6.2
 #[derive(Debug)]
 pub struct ArmorReader {
-    pub data_type: Result<ArmorDataType, ArmorDataTypeError>,
+    pub data_type: Result<ArmorDataType, ArmorError>,
     pub data_headers: ArmorDataHeaderMap,
-    pub encoded_data: Result<ArmorData, ArmorReaderError>,
+    pub encoded_data: Result<ArmorData, ArmorError>,
     pub decoded_data: Result<ArmorData, DecoderError>,
-    pub checksum: Result<ArmorChecksum, ArmorReaderError>,
+    pub checksum: Result<ArmorChecksum, ArmorError>,
 }
 
 impl ArmorReader {
@@ -60,7 +60,7 @@ impl ArmorReader {
             .replace("⏎", LINE_ENDING)
     }
 
-    fn parse_data_type(input: &str) -> Result<ArmorDataType, ArmorDataTypeError> {
+    fn parse_data_type(input: &str) -> Result<ArmorDataType, ArmorError> {
         let mut stripped_header_line = "";
 
         for line in input.lines() {
@@ -76,7 +76,7 @@ impl ArmorReader {
     }
 
     fn parse_data_headers(input: &str) -> ArmorDataHeaderMap {
-        let mut output = HashMap::new();
+        let mut output = ArmorDataHeaderMap::new();
 
         input.lines()
             .filter(|line| Self::is_data_header_line(line))
@@ -131,17 +131,16 @@ impl ArmorReader {
             line.len() == "=EHJM".len()
     }
 
-    fn parse_checksum(input: &str) -> Result<ArmorChecksum, ArmorReaderError> {
+    fn parse_checksum(input: &str) -> Result<ArmorChecksum, ArmorError> {
         for line in input.lines() {
             let line = line.trim();
 
             if Self::is_checksum_line(line) {
-                let checksum = ArmorChecksum::new(line);
-                return Ok(checksum)
+                return ArmorChecksum::new(line);
             }
         }
 
-        Err(ArmorReaderError(String::from("Failed to find checksum.")))
+        Err(ArmorError::ReaderUnknownChecksum)
     }
 }
 

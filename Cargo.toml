@@ -11,12 +11,16 @@ rand = "0.8.1"
 [dependencies.aes]
 path = "lib/aes"
 
+[dependencies.ascii_armor]
+path = "lib/ascii_armor"
+
 [dependencies.base64]
 path = "lib/base64"
 
 [workspace]
 members = [
     "lib/aes",
+    "lib/ascii_armor",
     "lib/base64",
     "tests/constant-time",
 ]

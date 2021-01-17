@@ -45,6 +45,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23b62fc65de8e4e7f52534fb52b0f3ed04746ae267519eef2a83941e8085068b"
 
 [[package]]
+name = "ascii_armor"
+version = "0.1.0"
+dependencies = [
+ "base64 0.1.0",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -734,6 +741,7 @@ name = "rpg"
 version = "0.1.0"
 dependencies = [
  "aes",
+ "ascii_armor",
  "base64 0.1.0",
  "rand",
 ]

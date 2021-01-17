@@ -1,6 +1,8 @@
-#[derive(Debug, PartialEq)]
-pub struct ArmorDataTypeError(String);
+use crate::ArmorError;
 
+/// ASCII Armor data types
+///
+/// Useful for reading/writing ASCII Armor headers and footers.
 #[derive(Debug, PartialEq)]
 pub enum ArmorDataType {
     /// Used for signed, encrypted, or compressed files.
@@ -14,12 +16,12 @@ pub enum ArmorDataType {
 
     /// Used for multi-part messages, where the armor is split amongst Y
     /// parts, and this is the Xth part out of Y.
-    PgpMessagePartXy(u8, u8),
+    PgpMessagePartXy(usize, usize),
 
     /// Used for multi-part messages, where this is the Xth part of an
     /// unspecified number of parts.  Requires the MESSAGE-ID Armor
     /// Header to be used.
-    PgpMessagePartX(u8),
+    PgpMessagePartX(usize),
 
     /// Used for detached signatures, OpenPGP/MIME signatures, and
     /// cleartext signatures.  Note that PGP 2.x uses BEGIN PGP MESSAGE
@@ -41,7 +43,21 @@ pub enum ArmorDataType {
 }
 
 impl ArmorDataType {
-    pub fn from_str(input: &str) -> Result<Self, ArmorDataTypeError> {
+    /// Get the enum variant based on a given string slice.
+    ///
+    /// Useful when reading ASCII Armor.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use ascii_armor::ArmorDataType;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// assert_eq!(ArmorDataType::from_str("PGP MESSAGE")?, ArmorDataType::PgpMessage);
+    /// assert_eq!(ArmorDataType::from_str("PGP MESSAGE, PART 1/3")?, ArmorDataType::PgpMessagePartXy(1, 3));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn from_str(input: &str) -> Result<Self, ArmorError> {
         match input {
             "PGP MESSAGE" => Ok(ArmorDataType::PgpMessage),
             "PGP PUBLIC KEY BLOCK" => Ok(ArmorDataType::PgpPublicKeyBlock),
@@ -52,33 +68,55 @@ impl ArmorDataType {
             "PGP SECRET KEY BLOCK" => Ok(ArmorDataType::PgpSecretKeyBlock),
             _ => {
                 if input.starts_with("PGP MESSAGE, PART ") {
-                    let parts: Vec<&str> = input["PGP MESSAGE, PART ".len()..]
-                        .trim()
-                        .split("/")
-                        .collect()
-                    ;
-
-                    if parts.len() == 1 {
-                        let x = parts[0].parse::<u8>();
-
-                        if x.is_ok() {
-                            return Ok(ArmorDataType::PgpMessagePartX(x.unwrap()))
-                        }
-                    } else if parts.len() == 2 {
-                        let x = parts[0].parse::<u8>();
-                        let y = parts[1].parse::<u8>();
-
-                        if x.is_ok() && y.is_ok() {
-                            return Ok(ArmorDataType::PgpMessagePartXy(x.unwrap(), y.unwrap()))
-                        }
-                    }
+                    return Self::parse_pgp_message_part(input);
                 }
 
-                Err(ArmorDataTypeError(format!("Unknown Armor data type `{}`.", input)))
+                Err(ArmorError::UnknownDataType(input.into()))
             },
         }
     }
 
+    fn parse_pgp_message_part(input: &str) -> Result<Self, ArmorError> {
+        let parts: Vec<&str> = input["PGP MESSAGE, PART ".len()..]
+            .trim()
+            .split("/")
+            .collect()
+        ;
+
+        match parts.len() {
+            1 => {
+                let x = parts[0].parse::<usize>();
+
+                if x.is_ok() {
+                    return Ok(ArmorDataType::PgpMessagePartX(x.unwrap()))
+                }
+            },
+            2 => {
+                let x = parts[0].parse::<usize>();
+                let y = parts[1].parse::<usize>();
+
+                if x.is_ok() && y.is_ok() {
+                    return Ok(ArmorDataType::PgpMessagePartXy(x.unwrap(), y.unwrap()))
+                }
+            },
+            _ => {
+                return Err(ArmorError::UnknownDataType(input.into()));
+            }
+        }
+
+        Err(ArmorError::UnknownDataType(input.into()))
+    }
+
+    /// Generate a string based on the enum variant.
+    ///
+    /// Useful when writing ASCII Armor.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use ascii_armor::ArmorDataType;
+    ///
+    /// assert_eq!(ArmorDataType::PgpMessagePartX(2).to_string(), String::from("PGP MESSAGE, PART 2"));
+    /// ```
     pub fn to_string(&self) -> String {
         match self {
             Self::PgpMessage => String::from("PGP MESSAGE"),
@@ -102,7 +140,7 @@ mod tests {
     fn str_to_enum_fails_for_invalid_input() {
         assert_eq!(
             ArmorDataType::from_str("InvalidInput"),
-            Err(ArmorDataTypeError(String::from("Unknown Armor data type `InvalidInput`.")))
+            Err(ArmorError::UnknownDataType("InvalidInput".into()))
         );
     }
 
