@@ -66,13 +66,8 @@ impl ArmorDataType {
             "PGP SIGNED MESSAGE" => Ok(ArmorDataType::PgpSignedMessage),
             "PGP ARMORED FILE" => Ok(ArmorDataType::PgpArmoredFile),
             "PGP SECRET KEY BLOCK" => Ok(ArmorDataType::PgpSecretKeyBlock),
-            _ => {
-                if input.starts_with("PGP MESSAGE, PART ") {
-                    return Self::parse_pgp_message_part(input);
-                }
-
-                Err(ArmorError::UnknownDataType(input.into()))
-            },
+            _ if input.starts_with("PGP MESSAGE, PART ") => Self::parse_pgp_message_part(input),
+            _ => Err(ArmorError::UnknownDataType(input.into())),
         }
     }
 
