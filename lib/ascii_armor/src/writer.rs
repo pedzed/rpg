@@ -9,10 +9,13 @@ use crate::LINE_ENDING;
 /// than 76 characters each according to RFC 4880. GnuPG uses 64.
 const LINE_LENGTH: usize = 64;
 
-#[derive(Debug)]
 /// ArmorWriter for creating ASCII Armor
 ///
-/// Writes to the buffer of choice, where the buffer implements the Write trait.
+/// Writes to a buffer of choice, where the buffer implements the Write trait.
+///
+/// # Links
+/// - [RFC 4880, Section 6.2: Forming ASCII Armor](https://tools.ietf.org/html/rfc4880#section-6.2)
+#[derive(Debug)]
 pub struct ArmorWriter<'a> {
     data_type: Option<ArmorDataType>,
     data_headers: ArmorDataHeaderMap,
@@ -21,7 +24,7 @@ pub struct ArmorWriter<'a> {
 }
 
 impl<'a> ArmorWriter<'_> {
-    /// Write to the buffer without failing on missing properties
+    /// Write to a buffer without failing on missing properties
     pub fn write_unchecked(&self, buffer: &mut dyn Write) -> Result<()> {
         if let Some(data_type) = &self.data_type {
             self.write_header_line(data_type, buffer)?;
