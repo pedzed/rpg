@@ -2,8 +2,10 @@ pub mod crypto;
 
 use std::fs;
 use std::fs::File;
+use std::io::Read;
 use std::io::BufReader;
 
+use ascii_armor::ArmorError;
 use ascii_armor::ArmorWriterBuilder;
 use ascii_armor::ArmorDataHeader;
 use ascii_armor::ArmorDataType;
@@ -117,61 +119,59 @@ impl DecryptionCommand {
 
         println!("Decrypting `{}` using {}...", self.input_file, self.algo.to_str());
 
-        let input = fs::read(&self.input_file)
-            .expect(&format!("Could not read `{}`.", &self.input_file))
-        ;
+        let mut file = File::open(&self.input_file).unwrap();
 
-        let file = File::open(&self.input_file).unwrap();
-        let mut buffer = BufReader::new(file);
-        let armor_reader = ArmorReader::read(&mut buffer);
+        let armor = self.read_armor(&file);
 
-        let ciphertext = match armor_reader {
-            Ok(ref armor) => {
-                match &armor.data {
-                    Ok(data) => data.as_slice(),
-                    Err(_) => &input,
-                }
+        let plaintext = match armor {
+            Ok(armor) => match self.decrypt_armor(armor) {
+                Ok(plaintext) => plaintext,
+                Err(_) => self.decrypt_file_without_armor(&mut file).unwrap(),
             },
-            Err(_) => &input,
+            Err(_) => self.decrypt_file_without_armor(&mut file).unwrap(),
         };
 
-        match armor_reader {
-            Ok(ref armor) => {
-                let checksum = armor.checksum.as_ref().expect("Could not read checksum.");
+        println!("✓ Decrypted `{}` ({} bytes).", &self.input_file, plaintext.len());
 
-                match checksum.verify(&ciphertext) {
-                    true => {
-                        println!("✓ Checksum verification passed.");
-                    },
-                    false => {
-                        match self.ignore_crc_error {
-                            true => {
-                                println!("✗ Checksum verification of `{}` failed. Ignoring...", checksum.get());
-                                std::thread::sleep(std::time::Duration::from_millis(2500));
-                            },
-                            false => {
-                                panic!("✗ Checksum verification of `{}` failed. Aborting.", checksum.get());
-                            },
-                        }
-                    },
-                }
+        println!("Writing to `{}`...", &self.output_file);
+        fs::write(&self.output_file, &plaintext).unwrap();
+
+        println!("✓ Finished.");
+    }
+
+    fn read_armor(&self, file: &File) -> Result<ArmorReader, ArmorError> {
+        let mut reader = BufReader::new(file);
+        ArmorReader::read(&mut reader)
+    }
+
+    fn decrypt_armor(&self, armor: ArmorReader) -> Result<Vec<u8>, Error> {
+        let ciphertext = armor.data?;
+        let plaintext = OpenPgpCfbAes128::decrypt(&ciphertext, &self.cipher_key)?;
+
+        let checksum = armor.checksum?;
+
+        match checksum.verify(&ciphertext) {
+            true => println!("✓ Checksum verification passed."),
+            false => match self.ignore_crc_error {
+                true => {
+                    println!("✗ Checksum verification of `{}` failed. Ignoring...", checksum.get());
+                    std::thread::sleep(std::time::Duration::from_millis(2500));
+                },
+                false => {
+                    panic!("✗ Checksum verification of `{}` failed. Aborting.", checksum.get());
+                },
             },
-            Err(_) => {},
         }
 
-        let plaintext = OpenPgpCfbAes128::decrypt(&ciphertext, &self.cipher_key)
-            .expect("Failed to encrypt.")
-        ;
+        Ok(plaintext)
+    }
 
-        fs::write(&self.output_file, &plaintext)
-            .expect(&format!("Could not write to `{}`.", &self.output_file))
-        ;
+    fn decrypt_file_without_armor(&self, file: &mut File) -> Result<Vec<u8>, Error> {
+        let mut ciphertext = Vec::with_capacity(file.metadata()?.len() as usize);
+        file.read_to_end(&mut ciphertext)?;
 
-        println!(
-            "Decrypted `{}`. {} bytes of plaintext written to {}.",
-            &self.input_file,
-            plaintext.len(),
-            &self.output_file,
-        );
+        let plaintext = OpenPgpCfbAes128::decrypt(&ciphertext, &self.cipher_key)?;
+
+        Ok(plaintext)
     }
 }
