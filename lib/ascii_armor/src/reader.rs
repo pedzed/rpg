@@ -1,10 +1,9 @@
 // TODO: Refactor file to be more consistent with ArmorWriter
 // TODO: Work on documentation
 
-use std::io;
-use std::fs;
-
-use base64::DecoderError;
+use std::io::SeekFrom;
+use std::io::BufRead;
+use std::io::Seek;
 
 use crate::ArmorChecksum;
 use crate::ArmorDataHeader;
@@ -14,110 +13,186 @@ use crate::ArmorError;
 
 use crate::LINE_ENDING;
 
-type ArmorData = Vec<u8>;
+pub trait SeekBufRead: Seek + BufRead {
+    // NOTE: Nightly-only experimental
+    // https://github.com/rust-lang/rust/issues/59359
+    fn stream_len(&mut self) -> std::io::Result<u64> {
+        let old_pos = self.stream_position()?;
+        let len = self.seek(SeekFrom::End(0))?;
 
-// 6.2.  Forming ASCII Armor
-// https://tools.ietf.org/html/rfc4880#section-6.2
+        // Avoid seeking a third time when we were already at the end of the
+        // stream. The branch is usually way cheaper than a seek operation.
+        if old_pos != len {
+            self.seek(SeekFrom::Start(old_pos))?;
+        }
+
+        Ok(len)
+    }
+
+    // NOTE: Nightly-only experimental
+    // https://github.com/rust-lang/rust/issues/59359
+    fn stream_position(&mut self) -> std::io::Result<u64> {
+        self.seek(SeekFrom::Current(0))
+    }
+}
+
+impl<T: Seek + BufRead> SeekBufRead for T {}
+
+/// ArmorReader for parsing ASCII Armor
+///
+/// # Links
+/// - [RFC 4880, Section 6.2: Forming ASCII Armor](https://tools.ietf.org/html/rfc4880#section-6.2)
 #[derive(Debug)]
 pub struct ArmorReader {
     pub data_type: Result<ArmorDataType, ArmorError>,
-    pub data_headers: ArmorDataHeaderMap,
-    pub encoded_data: Result<ArmorData, ArmorError>,
-    pub decoded_data: Result<ArmorData, DecoderError>,
+    pub data_headers: Result<ArmorDataHeaderMap, ArmorError>,
+    pub data: Result<Vec<u8>, ArmorError>,
     pub checksum: Result<ArmorChecksum, ArmorError>,
 }
 
 impl ArmorReader {
-    pub fn read_file(file: &str) -> Result<Self, io::Error> {
-        let file_contents = fs::read_to_string(file)?;
+    /// Read ASCII Armor by parsing and decoding the data
+    ///
+    /// # Examples
+    /// ```rust
+    /// use ascii_armor::ArmorReader;
+    /// use ascii_armor::ArmorDataType;
+    ///
+    /// fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///    let mut buffer = std::io::Cursor::new("\
+    ///        -----BEGIN PGP MESSAGE-----\r\n\
+    ///        Version: rpg v0.1.0\r\n\
+    ///        Comment: An example, just for you.\r\n\
+    ///        \r\n\
+    ///        SGVsbG8sIGJlYXV0aWZ1bCB3b3JsZCE=\r\n\
+    ///        =4oUH\r\n\
+    ///        -----END PGP MESSAGE-----\r\n\
+    ///    ");
+    ///
+    ///    let armor = ArmorReader::read(&mut buffer)?;
+    ///
+    ///    assert_eq!(armor.data_type?, ArmorDataType::PgpMessage);
+    ///    assert_eq!(armor.data_headers?.len(), 2);
+    ///    assert_eq!(armor.data?, b"Hello, beautiful world!");
+    ///    assert!(armor.checksum?.verify(b"Hello, beautiful world!"));
+    ///
+    ///    Ok(())
+    /// }
+    /// ```
+    pub fn read(buffer: &mut dyn SeekBufRead) -> Result<Self, ArmorError> {
+        let data_type = Self::parse_data_type(buffer);
+        let data_headers = Self::parse_data_headers(buffer);
+        let checksum = Self::parse_checksum(buffer);
+        let data = match Self::parse_data(buffer) {
+            Err(e) => Err(e),
+            Ok(data) => match base64::decode(&data) {
+                Err(e) => Err(e.into()),
+                Ok(data) => Ok(data),
+            },
+        };
 
-        Ok(Self::read_str(&file_contents))
-    }
-
-    pub fn read_str(input: &str) -> Self {
-        let input = Self::normalize(input);
-
-        let data_type = Self::parse_data_type(&input);
-        let data_headers = Self::parse_data_headers(&input);
-        let encoded_data = Self::parse_data(&input);
-        let decoded_data = base64::decode(&encoded_data);
-        let checksum = Self::parse_checksum(&input);
-
-        Self {
+        Ok(Self {
             data_type,
             data_headers,
-            encoded_data: Ok(encoded_data),
-            decoded_data,
+            data,
             checksum,
-        }
+        })
     }
 
-    fn normalize(armor: &str) -> String {
-        armor.trim()
+    fn parse_data_type(buffer: &mut dyn SeekBufRead) -> Result<ArmorDataType, ArmorError> {
+        buffer.seek(SeekFrom::Start(0))?;
+
+        for line in buffer.lines() {
+            let line = Self::normalize_line(&line?);
+
+            if Self::is_header_line(&line) {
+                let from = "-----BEGIN ".len();
+                let to = line.len() - "-----".len();
+                let stripped = line[from..to].trim();
+                return Ok(ArmorDataType::from_str(stripped)?);
+            }
+        }
+
+        Err(ArmorError::ReaderUnknownDataType)
+    }
+
+    fn is_header_line(line: &str) -> bool {
+        line.starts_with("-----BEGIN ")
+    }
+
+    fn normalize_line(line: &str) -> String {
+        line
+            .trim()
             .replace("\r\n", "⏎")
             .replace("\r", "⏎")
             .replace("\n", "⏎")
             .replace("⏎", LINE_ENDING)
     }
 
-    fn parse_data_type(input: &str) -> Result<ArmorDataType, ArmorError> {
-        let mut stripped_header_line = "";
+    fn parse_data_headers(buffer: &mut dyn SeekBufRead) -> Result<ArmorDataHeaderMap, ArmorError> {
+        buffer.seek(SeekFrom::Start(0))?;
 
-        for line in input.lines() {
-            if line.starts_with("-----BEGIN") {
-                let from = "-----BEGIN".len();
-                let to = line.len() - "-----".len();
-                stripped_header_line = line[from..to].trim();
-                break
+        let mut output = ArmorDataHeaderMap::new();
+
+        for line in buffer.lines() {
+            let line = line?;
+
+            if !Self::is_data_header_line(&line) {
+                continue;
+            }
+
+            let mut header = line.split(":");
+            let key = header.next();
+            let value = header.next();
+
+            match key {
+                None => continue,
+                Some(key) => {
+                    let key = ArmorDataHeader::from_str(key)?;
+
+                    match value {
+                        None => continue,
+                        Some(value) => {
+                            output
+                                .entry(key)
+                                .or_insert_with(Vec::new)
+                                .push(value.trim().into())
+                        },
+                    }
+                },
             }
         }
 
-        ArmorDataType::from_str(stripped_header_line)
-    }
-
-    fn parse_data_headers(input: &str) -> ArmorDataHeaderMap {
-        let mut output = ArmorDataHeaderMap::new();
-
-        input.lines()
-            .filter(|line| Self::is_data_header_line(line))
-            .map(|line| line.split(":").collect::<Vec<&str>>())
-            .for_each(|data_header| {
-                let key = ArmorDataHeader::from_str(data_header[0]);
-
-                if key.is_err() {
-                    // TODO: Log failure
-                    return
-                }
-
-                let value = data_header[1].trim();
-
-                output
-                    .entry(key.unwrap())
-                    .or_insert_with(Vec::new)
-                    .push(String::from(value))
-            })
-        ;
-
-        output
+        Ok(output)
     }
 
     fn is_data_header_line(line: &str) -> bool {
         line.contains(":")
     }
 
-    fn parse_data(input: &str) -> ArmorData {
-        input
-            .rsplitn(2, &LINE_ENDING.repeat(2)).next().unwrap()
-            .trim()
-            .lines()
-            .filter(|line| {
-                !Self::is_tail_line(line) &&
-                !Self::is_checksum_line(line)
-            })
-            .collect::<Vec<&str>>()
-            .join("")
-            .as_bytes()
-            .to_vec()
+    fn parse_data(buffer: &mut dyn SeekBufRead) -> Result<Vec<u8>, ArmorError> {
+        buffer.seek(SeekFrom::Start(0))?;
+
+        let buffer_length = buffer.stream_len()? as usize;
+
+        let mut output = Vec::with_capacity(buffer_length);
+
+        for line in buffer.lines() {
+            let line = line?;
+            let line = line.trim();
+
+            if Self::is_header_line(line) ||
+                Self::is_data_header_line(line) ||
+                Self::is_tail_line(line) ||
+                Self::is_checksum_line(line)
+            {
+                continue;
+            }
+
+            output.extend(line.as_bytes());
+        }
+
+        Ok(output)
     }
 
     fn is_tail_line(line: &str) -> bool {
@@ -125,14 +200,15 @@ impl ArmorReader {
     }
 
     fn is_checksum_line(line: &str) -> bool {
-        let line = line.trim();
-
         line.chars().nth(0).unwrap_or('.') == '=' &&
-            line.len() == "=EHJM".len()
+            line.len() == "=ABCD".len()
     }
 
-    fn parse_checksum(input: &str) -> Result<ArmorChecksum, ArmorError> {
-        for line in input.lines() {
+    fn parse_checksum(buffer: &mut dyn SeekBufRead) -> Result<ArmorChecksum, ArmorError> {
+        buffer.seek(SeekFrom::Start(0))?;
+
+        for line in buffer.lines() {
+            let line = line?;
             let line = line.trim();
 
             if Self::is_checksum_line(line) {
@@ -150,73 +226,82 @@ mod tests {
 
     #[test]
     fn header_line_for_pgp_message() {
-        let armor = ArmorReader::read_str("\
+        let mut buffer = std::io::Cursor::new("\
             -----BEGIN PGP MESSAGE-----\r\
             \r\n\
             SGVsbG8=\r\n\
             =EHJM\r\n\
         ");
 
-        assert_eq!(armor.data_type, Ok(ArmorDataType::PgpMessage));
-    }
+        let armor = ArmorReader::read(&mut buffer).unwrap();
 
+        assert_eq!(armor.data_type.unwrap(), ArmorDataType::PgpMessage);
+    }
     #[test]
     fn header_line_for_pgp_message_part_x() {
-        let armor = ArmorReader::read_str("\
+        let mut buffer = std::io::Cursor::new("\
             -----BEGIN PGP MESSAGE, PART 2-----\n\
             \r\n\
             SGVsbG8=\r\n\
             =EHJM\r\n\
         ");
 
-        assert_eq!(armor.data_type, Ok(ArmorDataType::PgpMessagePartX(2)));
+        let armor = ArmorReader::read(&mut buffer).unwrap();
+
+        assert_eq!(armor.data_type.unwrap(), ArmorDataType::PgpMessagePartX(2));
     }
 
     #[test]
     fn header_line_for_pgp_message_part_xy() {
-        let armor = ArmorReader::read_str("\
-            -----BEGIN PGP MESSAGE, PART 2/3-----\r\n\
+        let mut buffer = std::io::Cursor::new("\
+            -----BEGIN PGP MESSAGE, PART 2/3-----  \r\n  \
             \r\n\
             SGVsbG8=\r\n\
             =EHJM\r\n\
         ");
 
-        assert_eq!(armor.data_type, Ok(ArmorDataType::PgpMessagePartXy(2, 3)));
+        let armor = ArmorReader::read(&mut buffer).unwrap();
+
+        assert_eq!(armor.data_type.unwrap(), ArmorDataType::PgpMessagePartXy(2, 3));
     }
 
     #[test]
     fn header_without_value() {
-        let armor = ArmorReader::read_str("\
+        let mut buffer = std::io::Cursor::new("\
             Version:\r\n\
             \r\n\
             SGVsbG8=\r\n\
             =EHJM\r\n\
         ");
 
+        let armor = ArmorReader::read(&mut buffer).unwrap();
+
         assert_eq!(
-            armor.data_headers.get(&ArmorDataHeader::Version),
+            armor.data_headers.unwrap().get(&ArmorDataHeader::Version),
             Some(&vec![String::new()])
         );
     }
 
     #[test]
     fn single_data_header() {
-        let armor = ArmorReader::read_str("\
+        let mut buffer = std::io::Cursor::new("\
             Version: OpenPrivacy 0.99\r\n\
             \r\n\
             SGVsbG8=\r\n\
             =EHJM\r\n\
         ");
 
+        let armor = ArmorReader::read(&mut buffer).unwrap();
+
         assert_eq!(
-            armor.data_headers.get(&ArmorDataHeader::Version),
+            armor.data_headers.unwrap().get(&ArmorDataHeader::Version),
             Some(&vec![String::from("OpenPrivacy 0.99")])
         );
     }
 
     #[test]
     fn multiple_data_headers_with_same_key() {
-        let armor = ArmorReader::read_str("\
+        let mut buffer = std::io::Cursor::new("\
             Comment: Comment on first line\r\n\
             Comment: And also on second line\r\n\
             \r\n\
@@ -224,9 +309,10 @@ mod tests {
             =EHJM\r\n\
         ");
 
+        let armor = ArmorReader::read(&mut buffer).unwrap();
+
         assert_eq!(
-            armor.data_headers.get(&ArmorDataHeader::Comment),
-            Some(&vec![
+            armor.data_headers.unwrap().get(&ArmorDataHeader::Comment), Some(&vec![
                 String::from("Comment on first line"),
                 String::from("And also on second line"),
             ])
@@ -235,7 +321,7 @@ mod tests {
 
     #[test]
     fn multiple_data_headers_with_different_keys() {
-        let armor = ArmorReader::read_str("\
+        let mut buffer = std::io::Cursor::new("\
             Comment: Comment on first line\r\n\
             Comment: And also on second line\r\n\
             Charset: UTF-8\r\n\
@@ -244,34 +330,39 @@ mod tests {
             =EHJM\r\n\
         ");
 
+        let armor = ArmorReader::read(&mut buffer).unwrap();
+        let headers = armor.data_headers.unwrap();
+
         assert_eq!(
-            armor.data_headers.get(&ArmorDataHeader::Comment),
+            headers.get(&ArmorDataHeader::Comment),
             Some(&vec![
                 String::from("Comment on first line"),
                 String::from("And also on second line"),
             ])
         );
         assert_eq!(
-            armor.data_headers.get(&ArmorDataHeader::Charset),
+            headers.get(&ArmorDataHeader::Charset),
             Some(&vec![String::from("UTF-8")])
         );
     }
 
     #[test]
     fn data_and_checksum() {
-        let armor = ArmorReader::read_str("\
+        let mut buffer = std::io::Cursor::new("\
             \r\n\
             SGVsbG8=\r\n\
             =EHJM\r\n\
         ");
 
-        assert_eq!(armor.decoded_data.unwrap(), b"Hello");
+        let armor = ArmorReader::read(&mut buffer).unwrap();
+
+        assert_eq!(armor.data.unwrap(), b"Hello");
         assert!(armor.checksum.unwrap().verify(b"Hello"));
     }
 
     #[test]
     fn everything_with_text_data() {
-        let armor = ArmorReader::read_str("
+        let mut buffer = std::io::Cursor::new("\
             -----BEGIN PGP MESSAGE-----\r\n\
             Version: Test\r\n\
             Comment: Aren't tests great?\r\n\
@@ -281,20 +372,24 @@ mod tests {
             -----END PGP MESSAGE-----\r\n\
         ");
 
+        let armor = ArmorReader::read(&mut buffer).unwrap();
+
         assert_eq!(armor.data_type.unwrap(), ArmorDataType::PgpMessage);
-        assert_eq!(armor.data_headers.len(), 2);
-        assert_eq!(armor.decoded_data.unwrap(), b"Hello, beautiful world!");
+        assert_eq!(armor.data_headers.unwrap().len(), 2);
+        assert_eq!(armor.data.unwrap(), b"Hello, beautiful world!");
         assert!(armor.checksum.unwrap().verify(b"Hello, beautiful world!"));
     }
 
     #[test]
     fn everything_with_binary_data_from_file() {
         let binary_file = "tests/resources/gnupg-icon.png";
-        let expected_data = fs::read(binary_file).unwrap();
+        let expected_data = std::fs::read(binary_file).unwrap();
 
         let armor_file = "tests/resources/gnupg-icon.png.asc";
-        let armor = ArmorReader::read_file(armor_file).unwrap();
-        let armor_data = armor.decoded_data.unwrap();
+        let file = std::fs::File::open(armor_file).unwrap();
+        let mut buffer = std::io::BufReader::new(file);
+        let armor = ArmorReader::read(&mut buffer).unwrap();
+        let armor_data = armor.data.unwrap();
 
         assert_eq!(armor_data, expected_data);
         assert!(armor.checksum.unwrap().verify(&expected_data));

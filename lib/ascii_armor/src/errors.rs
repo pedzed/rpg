@@ -4,9 +4,12 @@ pub enum ArmorError {
     UnknownDataHeader(String),
     UnknownDataType(String),
     InvalidChecksum(String),
+    FailedIo(String),
 
     // NOTE: Consider moving to own ArmorReaderError enum
+    ReaderUnknownDataType,
     ReaderUnknownChecksum,
+    ReaderFailedDecoding(String),
 }
 
 impl std::fmt::Display for ArmorError {
@@ -15,12 +18,27 @@ impl std::fmt::Display for ArmorError {
             ArmorError::UnknownDataHeader(ref header) => write!(f, "Unknown armor data header `{}`.", header),
             ArmorError::UnknownDataType(ref data_type) => write!(f, "Unknown armor data type `{}`.", data_type),
             ArmorError::InvalidChecksum(ref checksum) => write!(f, "Invalid checksum `{}`.", checksum),
+            ArmorError::FailedIo(ref error) => write!(f, "{}", error.to_owned()),
+            ArmorError::ReaderUnknownDataType => write!(f, "Cannot find valid data type in ASCII Armor."),
             ArmorError::ReaderUnknownChecksum => write!(f, "Cannot find valid checksum in ASCII Armor."),
+            ArmorError::ReaderFailedDecoding(ref error) => write!(f, "{}", error.to_owned()),
         }
     }
 }
 
 impl std::error::Error for ArmorError {}
+
+impl From<std::io::Error> for ArmorError {
+    fn from(e: std::io::Error) -> Self {
+        Self::FailedIo(e.to_string())
+    }
+}
+
+impl From<base64::DecoderError> for ArmorError {
+    fn from(e: base64::DecoderError) -> Self {
+        Self::ReaderFailedDecoding(e.to_string())
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -47,6 +65,21 @@ mod tests {
         assert_eq!(
             ArmorError::InvalidChecksum("InvalidInput".into()).to_string(),
             "Invalid checksum `InvalidInput`."
+        );
+    }
+
+    #[test]
+    fn io_error_to_armor_error() {
+        let io_error = std::io::Error::new(std::io::ErrorKind::Other, "Fail.");
+        assert_eq!(ArmorError::from(io_error), ArmorError::FailedIo(String::from("Fail.")));
+    }
+
+    #[test]
+    fn decoder_error_to_armor_error() {
+        let decoder_error = base64::DecoderError::UnexpectedChar(0x01);
+        assert_eq!(
+            ArmorError::from(decoder_error),
+            ArmorError::ReaderFailedDecoding(format!("Unexpected character `{}` found.", 0x01))
         );
     }
 }

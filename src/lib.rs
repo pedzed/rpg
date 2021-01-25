@@ -1,6 +1,8 @@
 pub mod crypto;
 
 use std::fs;
+use std::fs::File;
+use std::io::BufReader;
 
 use ascii_armor::ArmorWriterBuilder;
 use ascii_armor::ArmorDataHeader;
@@ -119,12 +121,14 @@ impl DecryptionCommand {
             .expect(&format!("Could not read `{}`.", &self.input_file))
         ;
 
-        let armor_reader = ArmorReader::read_file(&self.input_file);
+        let file = File::open(&self.input_file).unwrap();
+        let mut buffer = BufReader::new(file);
+        let armor_reader = ArmorReader::read(&mut buffer);
 
         let ciphertext = match armor_reader {
             Ok(ref armor) => {
-                match &armor.decoded_data {
-                    Ok(decoded_data) => decoded_data,
+                match &armor.data {
+                    Ok(data) => data.as_slice(),
                     Err(_) => &input,
                 }
             },
