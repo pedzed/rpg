@@ -29,6 +29,8 @@ fn main() {
                 .expect(&format!("Expected input file. None provided."))
             ;
 
+            let cipher_key = request_key(&algo);
+
             if arg == "--encrypt" {
                 let output_file = format!("{}.rpg", input_file);
                 let with_armor = args.contains(&String::from("--armor"));
@@ -37,7 +39,7 @@ fn main() {
                     algo,
                     input_file: String::from(input_file),
                     output_file,
-                    cipher_key: (0x112233445566778899AABBCCDDEEFF as u128).to_be_bytes().to_vec(),
+                    cipher_key,
                     with_armor,
                 }.run();
             } else {
@@ -48,7 +50,7 @@ fn main() {
                     algo,
                     input_file: String::from(input_file),
                     output_file,
-                    cipher_key: (0x112233445566778899AABBCCDDEEFF as u128).to_be_bytes().to_vec(),
+                    cipher_key,
                     ignore_crc_error,
                 }.run();
             }
@@ -92,4 +94,9 @@ fn get_help_text() -> String {
         app_name=APP_NAME,
         app_version=APP_VERSION,
     )
+}
+
+fn request_key(algo: &SymmetricCipher) -> Vec<u8> {
+    // WARN: Prompt user for key
+    (0x00112233445566778899AABBCCDDEEFF as u128).to_be_bytes().to_vec()
 }
