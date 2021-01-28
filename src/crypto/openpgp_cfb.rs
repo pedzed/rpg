@@ -142,7 +142,7 @@ mod tests {
 
     #[test]
     fn encrypt_without_plaintext_data() {
-        let key = (0x112233445566778899AABBCCDDEEFF as u128).to_be_bytes();
+        let key = (0x00112233445566778899AABBCCDDEEFF as u128).to_be_bytes();
         let plaintext = b"";
         assert_eq!(plaintext.len(), 0);
 
@@ -154,7 +154,7 @@ mod tests {
 
     #[test]
     fn encrypt_three_blocks_exact() {
-        let key = (0x112233445566778899AABBCCDDEEFF as u128).to_be_bytes();
+        let key = (0x00112233445566778899AABBCCDDEEFF as u128).to_be_bytes();
         let plaintext = b"This secret message uses exactly three blocks...";
         assert_eq!(plaintext.len(), 3 * 16);
 
@@ -166,7 +166,7 @@ mod tests {
 
     #[test]
     fn encrypt_three_blocks_nonfull() {
-        let key = (0x112233445566778899AABBCCDDEEFF as u128).to_be_bytes();
+        let key = (0x00112233445566778899AABBCCDDEEFF as u128).to_be_bytes();
         let plaintext = b"This secret message uses less than 3 blocks.";
         assert_ne!(plaintext.len(), 3 * 16);
 
