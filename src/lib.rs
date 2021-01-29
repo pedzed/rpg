@@ -11,7 +11,14 @@ use ascii_armor::ArmorDataHeader;
 use ascii_armor::ArmorDataType;
 use ascii_armor::ArmorReader;
 
+use crypto::aes::Aes128;
+use crypto::mode_of_operations::Mode;
+use crypto::cfb::CfbAes128;
 use crypto::openpgp_cfb::OpenPgpCfbAes128;
+use crypto::symmetric_cipher::BlockCipher;
+use crypto::symmetric_cipher::SymmetricDecryption;
+use crypto::symmetric_cipher::SymmetricEncryption;
+use crypto::symmetric_cipher::SymmetricKey;
 
 pub type Error = Box<dyn std::error::Error>;
 
@@ -47,6 +54,7 @@ impl SymmetricCipher {
 
 pub struct EncryptionCommand {
     pub algo: SymmetricCipher,
+    pub mode: Mode,
     pub input_file: String,
     pub output_file: String,
     pub cipher_key: Vec<u8>,
@@ -67,10 +75,12 @@ impl EncryptionCommand {
             .expect(&format!("Could not read `{}`.", self.input_file))
         ;
 
-        let ciphertext = OpenPgpCfbAes128::encrypt(&plaintext, &self.cipher_key)
-            .expect("Failed to encrypt.")
+        let ciphertext = Aes128::new()
+            .with_key(&self.cipher_key)
+            .using_mode(&self.mode)
+            .encrypt(&plaintext)
+            .unwrap()
         ;
-
 
         if self.with_armor {
             let mut buffer = fs::File::create(&self.output_file).unwrap();
@@ -103,6 +113,7 @@ impl EncryptionCommand {
 
 pub struct DecryptionCommand {
     pub algo: SymmetricCipher,
+    pub mode: Mode,
     pub input_file: String,
     pub output_file: String,
     pub cipher_key: Vec<u8>,
@@ -146,7 +157,12 @@ impl DecryptionCommand {
 
     fn decrypt_armor(&self, armor: ArmorReader) -> Result<Vec<u8>, Error> {
         let ciphertext = armor.data?;
-        let plaintext = OpenPgpCfbAes128::decrypt(&ciphertext, &self.cipher_key)?;
+        let plaintext = Aes128::new()
+            .with_key(&self.cipher_key)
+            .using_mode(&self.mode)
+            .decrypt(&ciphertext)
+            .unwrap()
+        ;
 
         let checksum = armor.checksum?;
 
@@ -167,10 +183,17 @@ impl DecryptionCommand {
     }
 
     fn decrypt_file_without_armor(&self, file: &mut File) -> Result<Vec<u8>, Error> {
-        let mut ciphertext = Vec::with_capacity(file.metadata()?.len() as usize);
-        file.read_to_end(&mut ciphertext)?;
+        // let mut ciphertext = Vec::with_capacity(file.metadata()?.len() as usize);
+        // file.read_to_end(&mut ciphertext)?;
 
-        let plaintext = OpenPgpCfbAes128::decrypt(&ciphertext, &self.cipher_key)?;
+        let ciphertext = std::fs::read(&self.input_file)?;
+
+        let plaintext = Aes128::new()
+            .with_key(&self.cipher_key)
+            .using_mode(&self.mode)
+            .decrypt(&ciphertext)
+            .unwrap()
+        ;
 
         Ok(plaintext)
     }

@@ -1,5 +1,6 @@
 use std::env;
 
+use rpg::crypto::mode_of_operations::Mode;
 use rpg::{APP_NAME, APP_VERSION, DecryptionCommand};
 use rpg::{EncryptionCommand, SymmetricCipher};
 
@@ -30,6 +31,7 @@ fn main() {
             ;
 
             let cipher_key = request_key(&algo);
+            let mode = Mode::Cfb;
 
             if arg == "--encrypt" {
                 let output_file = format!("{}.rpg", input_file);
@@ -37,6 +39,7 @@ fn main() {
 
                 EncryptionCommand {
                     algo,
+                    mode,
                     input_file: String::from(input_file),
                     output_file,
                     cipher_key,
@@ -48,6 +51,7 @@ fn main() {
 
                 DecryptionCommand {
                     algo,
+                    mode,
                     input_file: String::from(input_file),
                     output_file,
                     cipher_key,
@@ -96,7 +100,7 @@ fn get_help_text() -> String {
     )
 }
 
-fn request_key(algo: &SymmetricCipher) -> Vec<u8> {
+fn request_key(_algo: &SymmetricCipher) -> Vec<u8> {
     // WARN: Prompt user for key
     (0x00112233445566778899AABBCCDDEEFF as u128).to_be_bytes().to_vec()
 }

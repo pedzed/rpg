@@ -5,14 +5,14 @@ use super::mode_of_operations::Mode;
 pub type PlainTextOut = Vec<u8>;
 pub type CipherTextOut = Vec<u8>;
 
-pub trait SymmetricKey {
+pub trait SymmetricKey<'a> {
     type CipherKey;
 
     fn with_key(self, key: Self::CipherKey) -> Self;
 }
 
 pub trait BlockCipher {
-    fn using_mode(self, mode: Mode) -> Self;
+    fn using_mode(self, mode: &Mode) -> Self;
 }
 
 pub trait SymmetricEncryption {
